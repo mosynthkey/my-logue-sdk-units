@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T14:44:21.655586+00:00",
+  "generatedAt": "2026-09-14T15:13:23.610613+00:00",
   "plugins": [
     {
       "id": "stoneres",
@@ -57,7 +57,7 @@
           "target": "nts-3_kaoss",
           "module": "genericfx",
           "file": "./units/stoneres-nts-3_kaoss.nts3unit",
-          "size": 14956,
+          "size": 15740,
           "wasm": "./sim/stoneres/nts-3_kaoss/stoneres.html"
         }
       ]

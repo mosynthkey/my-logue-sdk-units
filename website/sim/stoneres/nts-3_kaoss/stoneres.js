@@ -3438,7 +3438,7 @@ if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
 // end include: postlibrary.js
 
 var ASM_CONSTS = {
-  22356: ($0, $1) => { var ready = (typeof Module !== "undefined" && Module.onAudioReady) ? Module.onAudioReady : setupWebAudioAndUI; ready(emscriptenGetAudioObject($0), emscriptenGetAudioObject($1)); }
+  22360: ($0, $1) => { var ready = (typeof Module !== "undefined" && Module.onAudioReady) ? Module.onAudioReady : setupWebAudioAndUI; ready(emscriptenGetAudioObject($0), emscriptenGetAudioObject($1)); }
 };
 
 // Imports from the Wasm binary.
@@ -3513,29 +3513,29 @@ function assignWasmExports(wasmExports) {
   wasmTable = wasmExports['__indirect_function_table'];
 }
 
-var _unit_header = Module['_unit_header'] = 22538;
-var _bitres_lut_f = Module['_bitres_lut_f'] = 22916;
-var _log_lut_f = Module['_log_lut_f'] = 23432;
+var _unit_header = Module['_unit_header'] = 22542;
+var _bitres_lut_f = Module['_bitres_lut_f'] = 22920;
+var _log_lut_f = Module['_log_lut_f'] = 23436;
 var _midi_to_hz_lut_f = Module['_midi_to_hz_lut_f'] = 6360;
-var _pow2_lut_f = Module['_pow2_lut_f'] = 24460;
-var _cubicsat_lut_f = Module['_cubicsat_lut_f'] = 25488;
-var _schetzen_lut_f = Module['_schetzen_lut_f'] = 26004;
-var _sqrtm2log_lut_f = Module['_sqrtm2log_lut_f'] = 26520;
+var _pow2_lut_f = Module['_pow2_lut_f'] = 24464;
+var _cubicsat_lut_f = Module['_cubicsat_lut_f'] = 25492;
+var _schetzen_lut_f = Module['_schetzen_lut_f'] = 26008;
+var _sqrtm2log_lut_f = Module['_sqrtm2log_lut_f'] = 26524;
 var _tanh_lut_f = Module['_tanh_lut_f'] = 6968;
 var _tanpi_lut_f = Module['_tanpi_lut_f'] = 11068;
-var _wavesA = Module['_wavesA'] = 36320;
-var _wavesB = Module['_wavesB'] = 44640;
-var _wavesC = Module['_wavesC'] = 51928;
-var _wavesD = Module['_wavesD'] = 58692;
-var _wavesE = Module['_wavesE'] = 66484;
-var _wavesF = Module['_wavesF'] = 74800;
-var _wt_sine_lut_f = Module['_wt_sine_lut_f'] = 74864;
-var _wt_saw_notes = Module['_wt_saw_notes'] = 75380;
-var _wt_saw_lut_f = Module['_wt_saw_lut_f'] = 75388;
-var _wt_sqr_notes = Module['_wt_sqr_notes'] = 79000;
-var _wt_sqr_lut_f = Module['_wt_sqr_lut_f'] = 79008;
-var _wt_par_notes = Module['_wt_par_notes'] = 82620;
-var _wt_par_lut_f = Module['_wt_par_lut_f'] = 82628;
+var _wavesA = Module['_wavesA'] = 36324;
+var _wavesB = Module['_wavesB'] = 44644;
+var _wavesC = Module['_wavesC'] = 51932;
+var _wavesD = Module['_wavesD'] = 58696;
+var _wavesE = Module['_wavesE'] = 66488;
+var _wavesF = Module['_wavesF'] = 74804;
+var _wt_sine_lut_f = Module['_wt_sine_lut_f'] = 74868;
+var _wt_saw_notes = Module['_wt_saw_notes'] = 75384;
+var _wt_saw_lut_f = Module['_wt_saw_lut_f'] = 75392;
+var _wt_sqr_notes = Module['_wt_sqr_notes'] = 79004;
+var _wt_sqr_lut_f = Module['_wt_sqr_lut_f'] = 79012;
+var _wt_par_notes = Module['_wt_par_notes'] = 82624;
+var _wt_par_lut_f = Module['_wt_par_lut_f'] = 82632;
 
   var wasmImports;
   function assignWasmImports() {

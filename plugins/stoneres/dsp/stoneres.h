@@ -28,8 +28,11 @@ public:
   static constexpr uint32_t kModalMax = 10U;
   static constexpr uint32_t kChordVoiceMax = 12U;
   static constexpr uint32_t kOctaveRange = 2U;
-  static constexpr float kResonatorQ = 60.f;
-  static constexpr float kOutputGain = 2.2f;
+  static constexpr float kResonatorQ = 42.f;
+  static constexpr float kOutputGain = 7.5f;
+  static constexpr float kMaxRubSpeed = 1.15f;
+  static constexpr float kExciteLimit = 1.8f;
+  static constexpr float kHighpassHz = 140.f;
 
   // 2 tracks * (coarse + fine) * ring
   static constexpr uint32_t kRingFloats = kTrackCount * 2U * kRingLen;
@@ -170,6 +173,7 @@ public:
     catch_env_ = 0.f;
     body_lp_ = 0.f;
     gate_ = 0.f;
+    hp_z_ = 0.f;
 
     if (rings_ != nullptr)
     {
@@ -202,6 +206,7 @@ public:
     catch_env_ = 0.f;
     body_lp_ = 0.f;
     gate_ = 0.f;
+    hp_z_ = 0.f;
     pink0_ = pink1_ = pink2_ = hiss_lp_ = 0.f;
     clearModes();
     clearChord();
@@ -237,10 +242,14 @@ public:
       float dist = 0.f;
       if (dist2 > 0.f)
         dist = sqrtApprox(dist2);
-      float norm = dist * (1.f / 90.f);
-      if (norm > 3.f)
-        norm = 3.f;
-      speed_target_ = 0.55f * speed_target_ + 0.45f * norm;
+      // Compress large flicks: linear near zero, soft-knee above ~90px so a
+      // corner slam does not dump a click into the modal / chord banks.
+      float norm = dist * (1.f / 110.f);
+      if (norm > 1.f)
+        norm = 1.f + 0.55f * fastlog2f(norm + 1.f);
+      if (norm > kMaxRubSpeed)
+        norm = kMaxRubSpeed;
+      speed_target_ = 0.72f * speed_target_ + 0.28f * norm;
       return;
     }
 
@@ -255,17 +264,24 @@ public:
   {
     (void)in;
     const float sr = getSampleRate();
-    const float smooth_k = 1.f - fastexpf(-1.f / (0.008f * sr));
+    // Slightly slower speed slew so corner flicks do not impulse the banks.
+    const float smooth_k = 1.f - fastexpf(-1.f / (0.014f * sr));
     const float speed_decay = fastexpf(-1.f / (0.12f * sr));
-    const float catch_decay = 1.f + (-1.f / (0.06f * sr)); // near-1 linearization
+    const float catch_decay = 1.f + (-1.f / (0.05f * sr));
     const float gate_attack = 1.f - fastexpf(-1.f / (0.004f * sr));
     const float gate_release = 1.f - fastexpf(-1.f / (0.08f * sr));
-    const float body_lp_k = fx::onePoleCoeff(130.f, sr);
+    // Body path tracks mid energy, not sub boom.
+    const float body_lp_k = fx::onePoleCoeff(420.f, sr);
+    const float hp_k = fx::onePoleCoeff(kHighpassHz, sr);
     const float chord_smooth = 1.f - fastexpf(-1.f / (0.04f * sr));
     const float mix_angle = mix_ * 1.5707963267948966f;
     const float dry_amt = fastcosf(mix_angle);
-    const float wet_amt = fastsinf(mix_angle) * 2.f;
+    // Less wet makeup — chord bank was dominating and muddying.
+    const float wet_amt = fastsinf(mix_angle) * 1.55f;
     const float track_radius[kTrackCount] = {0.55f, 1.f};
+    // XY maps LOAD+ROUGH; compress when both are high (upper-right).
+    const float corner = load_ * rough_;
+    const float drive_comp = 1.f / (0.55f + 0.55f * corner);
 
     for (uint32_t sampleIndex = 0; sampleIndex < frames; ++sampleIndex)
     {
@@ -290,10 +306,10 @@ public:
         catch_env_ *= catch_decay;
         if (catch_env_ < 1e-5f)
           catch_env_ = 0.f;
-        const float catch_rate = (sp * (0.4f + 2.6f * grain_)) / sr;
+        const float catch_rate = (sp * (0.35f + 1.8f * grain_)) / sr;
         if (fx::randomFloat(rng_) < catch_rate * load)
         {
-          catch_impulse = 0.15f + 0.55f * fx::randomFloat(rng_);
+          catch_impulse = 0.08f + 0.28f * fx::randomFloat(rng_);
           catch_env_ += catch_impulse;
         }
 
@@ -314,7 +330,7 @@ public:
           if (trackIndex == 0U)
             h_c0 = h_c;
           float height = readRingSmooth(fine, track_pos_f_[trackIndex]) * (0.3f + rough * 0.7f);
-          const float drive = 1.5f + load * 6.f;
+          const float drive = 1.2f + load * 3.5f;
           height = fastertanhf(height * drive) / drive;
 
           const float d1 = height - track_h1_[trackIndex];
@@ -322,34 +338,37 @@ public:
           track_h2_[trackIndex] = track_h1_[trackIndex];
           track_h1_[trackIndex] = height;
 
+          // Soft-limit derivatives so a fast scan cannot spike.
+          const float d1c = fastertanhf(d1 * 5.f) * 0.22f;
+          const float d2c = fastertanhf(d2 * 5.f) * 0.22f;
           const float contact = fx::clip(1.f + 0.8f * h_c, 0.f, 2.f);
-          excite += (d2 * 55.f + d1 * 6.f) * contact;
+          excite += (d2c * 38.f + d1c * 5.5f) * contact;
         }
-        excite *= load * (0.4f + 0.6f * fx::clip(sp, 0.f, 1.5f));
+        excite *= load * (0.45f + 0.65f * fx::clip(sp, 0.f, 1.15f));
 
-        // Pink-ish hiss, cutoff follows scan speed.
+        // Brighter hiss; cutoff rises with speed.
         const float white = fx::randomFloat(rng_) * 2.f - 1.f;
         pink0_ = 0.997f * pink0_ + 0.029591f * white;
         pink1_ = 0.985f * pink1_ + 0.032534f * white;
         pink2_ = 0.95f * pink2_ + 0.048056f * white;
-        const float pink = pink0_ + pink1_ + pink2_ + white * 0.05f;
-        const float hiss_k = fx::onePoleCoeff(100.f + 7000.f * sp_n * sp_n, sr);
+        const float pink = pink0_ + pink1_ + pink2_ + white * 0.12f;
+        const float hiss_k = fx::onePoleCoeff(280.f + 11000.f * sp_n * sp_n, sr);
         hiss_lp_ += (pink - hiss_lp_) * hiss_k;
-        excite += hiss_lp_ * 0.07f * hiss_mul_ * rough * sp_n * load;
+        excite += hiss_lp_ * 0.14f * hiss_mul_ * (0.35f + 0.65f * rough) * sp_n * load;
 
-        const float grain_rate = sp * grain_ * 0.004f;
+        const float grain_rate = sp * grain_ * 0.0028f;
         if (fx::randomFloat(rng_) < grain_rate)
         {
-          const float amp = (0.3f + 0.7f * fx::randomFloat(rng_) * fx::randomFloat(rng_)) * load *
+          const float amp = (0.18f + 0.4f * fx::randomFloat(rng_) * fx::randomFloat(rng_)) * load *
                             (0.25f + 0.75f * sp_n);
           const float sign = (fx::randomFloat(rng_) < 0.5f) ? -1.f : 1.f;
-          excite += sign * amp * (1.f + 0.5f * h_c0) * 1.4f * impact_mul_;
+          excite += sign * amp * (1.f + 0.35f * h_c0) * impact_mul_;
         }
 
         if (catch_impulse > 0.f)
         {
           const float sign = (fx::randomFloat(rng_) < 0.5f) ? -1.f : 1.f;
-          excite += catch_impulse * load * 3.f * impact_mul_ * sign;
+          excite += catch_impulse * load * 1.4f * impact_mul_ * sign;
         }
       }
       else
@@ -357,15 +376,18 @@ public:
         catch_env_ *= catch_decay;
       }
 
+      excite *= drive_comp;
+      excite = fastertanhf(excite * (1.f / kExciteLimit)) * kExciteLimit;
+
       body_lp_ += (excite - body_lp_) * body_lp_k;
-      float body_in = body_lp_ * 3.f;
+      float body_in = body_lp_ * 1.6f;
       if (catch_impulse > 0.f)
-        body_in += catch_impulse * load * 1.5f;
+        body_in += catch_impulse * load * 0.7f;
 
       const float stone = processModes(excite, body_in);
-      const float dry = stone + excite * 0.12f;
+      // Less raw excite bleed into dry (was dark + clicky).
+      const float dry = stone + excite * 0.06f;
 
-      // Smooth chord coeffs toward targets, then resonate.
       for (uint32_t voiceIndex = 0; voiceIndex < chord_count_; ++voiceIndex)
       {
         chord_b1_[voiceIndex] += (chord_b1_t_[voiceIndex] - chord_b1_[voiceIndex]) * chord_smooth;
@@ -374,13 +396,22 @@ public:
       }
       const float wet = processChord(dry);
 
-      const float mixed = dry * dry_amt + wet * wet_amt;
-      const float sample = fx::softclip(mixed * kOutputGain) * gate_;
+      float mixed = dry * dry_amt + wet * wet_amt;
+      // Tilt out sub mud; keep scrape / partials.
+      hp_z_ += (mixed - hp_z_) * hp_k;
+      mixed = mixed - hp_z_;
+      // Soft then hard clip: fastertanhf can overshoot past ±1.
+      float sample = fastertanhf(mixed * kOutputGain) * gate_;
+      if (sample > 1.f)
+        sample = 1.f;
+      else if (sample < -1.f)
+        sample = -1.f;
       out[0] = sample;
       out[1] = sample;
       out += 2;
     }
   }
+
 
 private:
   struct Material
@@ -569,11 +600,12 @@ private:
   {
     const Material &mat = materialAt(material_);
     const float sr = getSampleRate();
-    // Size/thick folded to mid defaults (0.5) per plan.
     const float size_pitch = 1.f;
-    const float f0 = 110.f * mat.pitch * size_pitch;
-    const float t60_base = (0.04f + damp_ * damp_ * 0.9f);
-    const float ex_base = 1.38f + mat.ex_add;
+    // Raise fundamental: 110 Hz body read as muddy / "low".
+    const float f0 = 240.f * mat.pitch * size_pitch;
+    const float t60_base = (0.035f + damp_ * damp_ * 0.7f);
+    // Slightly denser partials for more mid/high presence.
+    const float ex_base = 1.28f + mat.ex_add * 0.85f;
     uint32_t mode_seed = 11U + material_ * 17U;
 
     modal_count_ = 0;
@@ -583,28 +615,29 @@ private:
       const float freq = f0 * fastpow2f(fastlog2f(static_cast<float>(modeIndex + 1U)) * ex_base) * (1.f + jitter);
       if (freq > 0.45f * sr)
         break;
-      const float t60 = fx::clip(t60_base * mat.t60 * fastpow2f(0.4f * fastlog2f(f0 / freq)), 0.008f, 4.f);
+      const float t60 = fx::clip(t60_base * mat.t60 * fastpow2f(0.35f * fastlog2f(f0 / freq)), 0.008f, 3.f);
       const float radius = radiusFromT60(t60, sr);
       const float omega = 6.283185307179586f * freq / sr;
       modal_b1_[modal_count_] = 2.f * radius * fastcosf(omega);
       modal_a2_[modal_count_] = radius * radius;
+      // Shallower slope + mild high-mode boost vs old dark curve.
+      const float tilt = fastpow2f(-(mat.slope * 0.72f) * fastlog2f(freq / f0));
       modal_g_[modal_count_] =
-          fastpow2f(-mat.slope * fastlog2f(freq / f0)) * (0.6f + 0.8f * fx::randomFloat(mode_seed)) * (1.f - radius);
+          tilt * (0.55f + 0.7f * fx::randomFloat(mode_seed)) * (1.f - radius);
       ++modal_count_;
     }
 
-    const float body_f =
-        60.f * size_pitch * sqrtApprox(mat.pitch);
-    const float body_t60 = (0.15f + damp_ * 1.1f) * mat.t60;
+    const float body_f = 140.f * size_pitch * sqrtApprox(mat.pitch);
+    const float body_t60 = (0.08f + damp_ * 0.55f) * mat.t60;
     const float body_r = radiusFromT60(body_t60, sr);
     const float body_w = 6.283185307179586f * body_f / sr;
     body_b1_ = 2.f * body_r * fastcosf(body_w);
     body_a2_ = body_r * body_r;
-    body_g_ = (1.f - body_r) * 0.9f;
-    body_gain_ = 0.55f;
+    body_g_ = (1.f - body_r) * 0.55f;
+    body_gain_ = 0.22f;
 
-    hiss_mul_ = mat.hiss;
-    impact_mul_ = mat.impact;
+    hiss_mul_ = mat.hiss * 1.25f;
+    impact_mul_ = mat.impact * 0.85f;
   }
 
   void rebuildChord()
@@ -615,7 +648,8 @@ private:
     const float q = kResonatorQ;
     uint32_t voice_count = 0;
 
-    for (int32_t octave = -static_cast<int32_t>(kOctaveRange); octave <= static_cast<int32_t>(kOctaveRange); ++octave)
+    // Skip the very low octave (-2); keep -1..+2 for clarity.
+    for (int32_t octave = -1; octave <= static_cast<int32_t>(kOctaveRange); ++octave)
     {
       for (uint8_t intervalIndex = 0; intervalIndex < interval_count; ++intervalIndex)
       {
@@ -623,19 +657,24 @@ private:
           break;
         const float midi = 60.f + static_cast<float>(root_) + static_cast<float>(octave * 12) +
                            static_cast<float>(intervals[intervalIndex]);
-        if (midi < 24.f || midi > 108.f)
+        if (midi < 40.f || midi > 100.f)
           continue;
         const float freq = fx::noteToHz(midi);
         if (freq > 0.45f * sr)
           continue;
-        // Bandwidth from Q; radius via near-1 safe exp.
         const float bw = freq / q;
         const float x = -3.141592653589793f * bw / sr;
-        const float radius = (x > -0.02f) ? fx::clip(1.f + x, 0.f, 0.99995f) : fx::clip(fastexpf(x), 0.f, 0.99995f);
+        const float radius = (x > -0.02f) ? fx::clip(1.f + x, 0.f, 0.9999f) : fx::clip(fastexpf(x), 0.f, 0.9999f);
         const float omega = 6.283185307179586f * freq / sr;
         chord_b1_t_[voice_count] = 2.f * radius * fastcosf(omega);
         chord_a2_t_[voice_count] = radius * radius;
-        chord_g_t_[voice_count] = (1.f - radius) * 1.2f;
+        // Attenuate lower chord voices; lift upper ones slightly.
+        float voice_w = 1.f;
+        if (octave < 0)
+          voice_w = 0.55f;
+        else if (octave > 0)
+          voice_w = 1.15f;
+        chord_g_t_[voice_count] = (1.f - radius) * 1.05f * voice_w;
         ++voice_count;
       }
     }
@@ -669,14 +708,23 @@ private:
     {
       float y = modal_b1_[modeIndex] * modal_y1_[modeIndex] - modal_a2_[modeIndex] * modal_y2_[modeIndex] +
                 modal_g_[modeIndex] * excite;
+      // Bound resonator state so hard scrapes cannot blow up.
+      if (y > 4.f)
+        y = 4.f;
+      else if (y < -4.f)
+        y = -4.f;
       modal_y2_[modeIndex] = modal_y1_[modeIndex];
       modal_y1_[modeIndex] = y;
       sum += y;
     }
     float body = body_b1_ * body_y1_ - body_a2_ * body_y2_ + body_g_ * body_in;
+    if (body > 3.f)
+      body = 3.f;
+    else if (body < -3.f)
+      body = -3.f;
     body_y2_ = body_y1_;
     body_y1_ = body;
-    return sum * 0.85f + body * body_gain_;
+    return sum * 1.05f + body * body_gain_;
   }
 
   float processChord(float input)
@@ -686,6 +734,10 @@ private:
     {
       float y = chord_b1_[voiceIndex] * chord_y1_[voiceIndex] - chord_a2_[voiceIndex] * chord_y2_[voiceIndex] +
                 chord_g_[voiceIndex] * input;
+      if (y > 3.f)
+        y = 3.f;
+      else if (y < -3.f)
+        y = -3.f;
       chord_y2_[voiceIndex] = chord_y1_[voiceIndex];
       chord_y1_[voiceIndex] = y;
       sum += y;
@@ -740,6 +792,7 @@ private:
   float pink2_ = 0.f;
   float hiss_lp_ = 0.f;
   float gate_ = 0.f;
+  float hp_z_ = 0.f;
   float last_x_ = 0.f;
   float last_y_ = 0.f;
   uint32_t rng_ = 1U;
