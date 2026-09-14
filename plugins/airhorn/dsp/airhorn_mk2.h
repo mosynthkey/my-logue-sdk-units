@@ -4,7 +4,8 @@
  * File: airhorn_mk2.h
  *
  * microKORG2 multi-voice AirHorn oscillator adapter.
- * PitchMode Fixed: sample D# pitch. Key: keyboard tracks relative to D#4.
+ * PitchMode Fixed: measured sample pitch. Key: keyboard tracks concert pitch
+ * from kAirhornRootMidi.
  */
 
 #include "airhorn_engine.h"
@@ -77,7 +78,7 @@ public:
         const uint8_t note = static_cast<uint8_t>(midi_note);
         float transpose = 1.f;
         if (engine_.pitchMode() == AirHornEngine::kPitchTrack)
-          transpose = AirHornEngine::noteTransposeFor(note);
+          transpose = AirHornEngine::noteTransposeFor(midi_note);
         voices_[voiceIndex].trigger(127, note, transpose);
       }
 

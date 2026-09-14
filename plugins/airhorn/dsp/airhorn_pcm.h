@@ -10,6 +10,14 @@
 static const uint32_t kAirhornSampleRate = 24000u;
 static const uint32_t kAirhornCount = 1u;
 
+// Settled loop fundamental from refined autocorrelation on the embedded PCM
+// (24 kHz). Raw pitch is ~302.03 Hz ≈ MIDI 62.49 (D4 + 49 cents), not D#4.
+static const float kAirhornSettledHz = 302.026154f;
+// Playback rate scale that retunes Fixed/Pitch-center onto exact D4 (MIDI 62).
+static const float kAirhornTuneRatio = 0.97231569f; // 293.664768 / 302.026154
+// Concert-pitch root after kAirhornTuneRatio (equal temperament, A4 = 440 Hz).
+static const float kAirhornRootMidi = 62.f;
+
 typedef struct AirhornSample
 {
   uint32_t offset;

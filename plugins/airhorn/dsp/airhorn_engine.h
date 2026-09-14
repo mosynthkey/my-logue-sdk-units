@@ -4,7 +4,9 @@
  * File: airhorn_engine.h
  *
  * DJ air horn: a 16-bit loop plus a pitch envelope that recreates the opening
- * drop. Settled sample pitch is D#4 (MIDI 63).
+ * drop. Settled pitch is measured on the embedded loop (~302.03 Hz ≈ D4 + 49c;
+ * see kAirhornSettledHz). Playback applies kAirhornTuneRatio so Fixed lands on
+ * exact D4; Key tracks concert pitch from kAirhornRootMidi (62).
  *
  * NTS-1 / microKORG2: no natural fade (device EG); PitchMode Fixed or Key.
  * NTS-3: Decay (0-127, 127 = Sustain) replaces Fade; PitchMode Fixed or Pitch
@@ -39,7 +41,6 @@ struct AirHornVoice
   static constexpr uint32_t kSettledHoldSamples = 12000U; // 250 ms at 48 kHz
   static constexpr float kBaseRate = static_cast<float>(kAirhornSampleRate) / 48000.f;
   static constexpr float kPitchSettled = 0.025f;
-  static constexpr float kRootMidiNote = 63.f; // D#4 — settled horn pitch
 
   static float pcmToFloat(int16_t sample)
   {
@@ -81,7 +82,8 @@ struct AirHornVoice
 
   static float midiTranspose(float midi_note)
   {
-    return fastpow2f((midi_note - kRootMidiNote) * (1.f / 12.f));
+    // Concert-pitch tracking from the measured sample root (not assumed D#).
+    return fastpow2f((midi_note - kAirhornRootMidi) * (1.f / 12.f));
   }
 
   bool pitchSettled() const
@@ -160,7 +162,7 @@ struct AirHornVoice
 
     float output = sampleAt(horn, pos) * gain * amp;
 
-    pos += kBaseRate * pitch_ratio * transpose;
+    pos += kBaseRate * kAirhornTuneRatio * pitch_ratio * transpose;
     const float loop_length = static_cast<float>(horn.length);
     while (pos >= loop_length)
       pos -= loop_length;
@@ -369,9 +371,9 @@ public:
   }
 
   // Direct voice access for microKORG2 (per-voice rendering outside the pool).
-  static float noteTransposeFor(uint8_t note)
+  static float noteTransposeFor(float midi_note)
   {
-    return AirHornVoice::midiTranspose(static_cast<float>(note));
+    return AirHornVoice::midiTranspose(midi_note);
   }
 
 private:

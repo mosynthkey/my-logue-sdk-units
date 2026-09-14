@@ -578,6 +578,13 @@ def extract_dj_loop(
 
 
 def write_header(path: pathlib.Path, horns: list[dict], sample_rate: int) -> None:
+    settled_hz = float(horns[0]["settled_hz"]) if horns else 0.0
+    # Nearest equal-tempered MIDI note (A4=440), then retune Fixed onto that pitch.
+    raw_midi = 69.0 + 12.0 * math.log2(settled_hz / 440.0) if settled_hz > 0.0 else 69.0
+    root_midi = float(round(raw_midi))
+    root_hz = 440.0 * (2.0 ** ((root_midi - 69.0) / 12.0))
+    tune_ratio = (root_hz / settled_hz) if settled_hz > 0.0 else 1.0
+
     lines = [
         "#pragma once",
         "",
@@ -590,6 +597,12 @@ def write_header(path: pathlib.Path, horns: list[dict], sample_rate: int) -> Non
         "",
         f"static const uint32_t kAirhornSampleRate = {sample_rate}u;",
         f"static const uint32_t kAirhornCount = {len(horns)}u;",
+        "",
+        "// Settled loop fundamental from refined autocorrelation on the embedded PCM.",
+        f"// Raw pitch is {settled_hz:.3f} Hz ≈ MIDI {raw_midi:.3f}; Fixed is retuned to MIDI {root_midi:.0f}.",
+        f"static const float kAirhornSettledHz = {settled_hz:.6f}f;",
+        f"static const float kAirhornTuneRatio = {tune_ratio:.8f}f; // {root_hz:.6f} / {settled_hz:.6f}",
+        f"static const float kAirhornRootMidi = {root_midi:.1f}f;",
         "",
         "typedef struct AirhornSample",
         "{",

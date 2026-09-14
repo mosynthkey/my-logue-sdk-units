@@ -3,6 +3,10 @@
 Embedded data is a single 16-bit PCM loop at 24 kHz. The settled DJ-horn tone is stored
 as a short seamless loop; the opening pitch drop is a pitch envelope.
 
+Measured settled fundamental on the shipping loop is ~302.03 Hz (about D4 + 49 cents),
+not tempered D#4. Playback applies `kAirhornTuneRatio` so Fixed lands on exact D4
+(MIDI 62); Key mode tracks concert pitch from that root.
+
 | Horn | File | License | Source | Playback |
 | --- | --- | --- | --- | --- |
 | DJ | `assets/dj-airhorn.wav` | Apache-2.0 | [brendanjryan/airhorn](https://github.com/brendanjryan/airhorn) | loop + pitch env (~+6 semitones → settle) |

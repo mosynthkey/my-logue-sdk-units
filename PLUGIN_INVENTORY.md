@@ -6,7 +6,7 @@
 
 - **AirHorn** (`airhorn`) — osc
   - 対応: nts-1_mkii, nts-3_kaoss, microkorg2
-  - エアホーン。NTS-1/mk2 は PMODE=Fixed|Key（鍵盤追従、根音 D#4）。NTS-3 は DECAY（127=Sustain）と PMODE=Fixed|Pitch＋PITCH(±2oct, X)。
+  - エアホーン。実測ルート〜302 Hz を D4 に補正。NTS-1/mk2 は PMODE=Fixed|Key（鍵盤は D4 基準のコンサートピッチ）。NTS-3 は DECAY（127=Sustain）と PMODE=Fixed|Pitch＋連続 PITCH(±2oct, X)。
 
 - **AmenTime** (`amentime`) — drum（実験的）
   - 対応: nts-3_kaoss
