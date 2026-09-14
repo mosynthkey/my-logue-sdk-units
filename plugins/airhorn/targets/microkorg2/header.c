@@ -18,8 +18,8 @@ const __unit_header unit_header_t unit_header = {
     .num_presets = 0,
     .num_params = 2,
     .params = {
-        {0, 1023, 0, 1023, k_unit_param_type_none, 1, 0, 0, {"LEVEL"}},
-        {0, 1, 0, 0, k_unit_param_type_strings, 1, 0, 0, {"PMODE"}},
+        {0, 127, 0, 127, k_unit_param_type_none, 0, 0, 0, {"LEVEL"}},
+        {0, 1, 0, 0, k_unit_param_type_strings, 0, 0, 0, {"PMODE"}},
         {0, 0, 0, 0, k_unit_param_type_none, 0, 0, 0, {""}},
         {0, 0, 0, 0, k_unit_param_type_none, 0, 0, 0, {""}},
         {0, 0, 0, 0, k_unit_param_type_none, 0, 0, 0, {""}},

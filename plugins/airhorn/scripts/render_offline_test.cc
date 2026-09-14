@@ -15,7 +15,7 @@ int main()
   AirHornEngine engine;
   engine.init();
   engine.setTrackFromParam(false);
-  engine.setParameter(AirHornEngine::LEVEL, 1023);
+  engine.setParameter(AirHornEngine::LEVEL, 127);
   engine.setParameter(AirHornEngine::PMODE, 0); // Fixed
 
   engine.startVoice(127, 60); // Fixed mode ignores note for pitch

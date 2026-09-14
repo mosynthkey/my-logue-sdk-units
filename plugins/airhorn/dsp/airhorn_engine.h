@@ -270,7 +270,8 @@ public:
     switch (index)
     {
     case LEVEL:
-      level_ = param10BitToFloat(value);
+      // NTS-1 / microKORG2: 0-127
+      level_ = (value <= 0) ? 0.f : (value >= 127 ? 1.f : value * (1.f / 127.f));
       break;
     case PMODE:
       pitch_mode_ = (value != 0) ? kPitchTrack : kPitchFixed;
