@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T14:13:15.178655+00:00",
+  "generatedAt": "2026-09-15T14:47:32.099395+00:00",
   "plugins": [
     {
       "id": "stepgatedelay",
@@ -9,7 +9,7 @@
       "targets": [
         "nts-3_kaoss"
       ],
-      "description": "Euclidean 1/16 gate into a tempo delay. Hold the pad to engage; the nearest 16th clock becomes relative step 0 (Ride909-style). X = Euclidean density among 16 steps (hits open the gate). Y = delay wet. Default delay is a dotted eighth. Feedback has high/low damp; low damp is on by default so repeats stay thin.",
+      "description": "Euclidean 1/16 gate into a tempo delay. Hold the pad to engage; the nearest 16th clock becomes relative step 0 (Ride909-style). X = Euclidean density among 16 steps (hits open the gate). Y = delay wet. SHAPE picks the per-step envelope: SQR, decaying SAW, RAMP, TRI, or EXP. Default delay is a dotted eighth. Feedback has high/low damp; low damp is on by default so repeats stay thin.",
       "params": [
         {
           "name": "DENS",
@@ -47,9 +47,9 @@
           "detail": "Delay time: 1/16, 1/8, 1/8D, 1/4, 1/4D, 1/2 (default 1/8D)"
         },
         {
-          "name": "ROT",
+          "name": "SHAPE",
           "role": "Edit",
-          "detail": "Rotate the Euclidean pattern"
+          "detail": "Gate envelope: SQR, SAW (decay), RAMP, TRI, EXP"
         }
       ],
       "builds": [
@@ -57,7 +57,7 @@
           "target": "nts-3_kaoss",
           "module": "genericfx",
           "file": "./units/stepgatedelay-nts-3_kaoss.nts3unit",
-          "size": 8324,
+          "size": 8616,
           "wasm": "./sim/stepgatedelay/nts-3_kaoss/stepgatedelay.html"
         }
       ]

@@ -4,7 +4,7 @@
   "name": "StepGateDelay",
   "type": "fx",
   "targets": ["nts-3_kaoss"],
-  "description": "Euclidean 1/16 gate into a tempo delay. Hold the pad to engage; the nearest 16th clock becomes relative step 0 (Ride909-style). X = Euclidean density among 16 steps (hits open the gate). Y = delay wet. Default delay is a dotted eighth. Feedback has high/low damp; low damp is on by default so repeats stay thin.",
+  "description": "Euclidean 1/16 gate into a tempo delay. Hold the pad to engage; the nearest 16th clock becomes relative step 0 (Ride909-style). X = Euclidean density among 16 steps (hits open the gate). Y = delay wet. SHAPE picks the per-step envelope: SQR, decaying SAW, RAMP, TRI, or EXP. Default delay is a dotted eighth. Feedback has high/low damp; low damp is on by default so repeats stay thin.",
   "params": [
     { "name": "DENS", "role": "X", "detail": "Euclidean hits among 16 steps (1–16)" },
     { "name": "DWET", "role": "Y", "detail": "Delay wet amount" },
@@ -13,6 +13,6 @@
     { "name": "HDAMP", "role": "Edit", "detail": "High damp (darker repeats)" },
     { "name": "LDAMP", "role": "Edit", "detail": "Low damp (thinner repeats; default engaged)" },
     { "name": "TIME", "role": "Edit", "detail": "Delay time: 1/16, 1/8, 1/8D, 1/4, 1/4D, 1/2 (default 1/8D)" },
-    { "name": "ROT", "role": "Edit", "detail": "Rotate the Euclidean pattern" }
+    { "name": "SHAPE", "role": "Edit", "detail": "Gate envelope: SQR, SAW (decay), RAMP, TRI, EXP" }
   ]
 }

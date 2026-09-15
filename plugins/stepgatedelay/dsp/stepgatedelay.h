@@ -6,8 +6,9 @@
  * Euclidean 1/16 gate into a tempo delay. Hold the pad to engage. On pad-down
  * the nearest 16th clock becomes relative step 0 (Ride909-style capture).
  * X = Euclidean density among 16 steps (only hits open the gate).
- * Y = delay wet. Default delay time is a dotted eighth. Feedback has
- * high/low damp; low damp is engaged by default so repeats stay thin.
+ * Y = delay wet. SHAPE picks the per-step gate envelope (square, decaying
+ * saw, ramp, triangle, exponential). Default delay time is a dotted eighth.
+ * Feedback has high/low damp; low damp is engaged by default.
  */
 
 #include "fx_dsp.h"
@@ -34,7 +35,7 @@ public:
     HDAMP,
     LDAMP,
     TIME,
-    ROT,
+    SHAPE,
     NUM_PARAMS
   };
 
@@ -47,6 +48,16 @@ public:
     TIME_4D,
     TIME_2,
     NUM_TIMES
+  };
+
+  enum
+  {
+    SHAPE_SQR = 0, // rectangular pulse
+    SHAPE_SAW,     // decaying saw (open → closed over the step)
+    SHAPE_RAMP,    // rising ramp
+    SHAPE_TRI,     // triangle
+    SHAPE_EXP,     // quadratic decay (softer than SAW)
+    NUM_SHAPES
   };
 
   void setParameter(uint8_t index, int32_t value) override final
@@ -74,8 +85,8 @@ public:
     case TIME:
       time_sel_ = static_cast<uint8_t>(fx::clip(static_cast<float>(value), 0.f, static_cast<float>(NUM_TIMES - 1)));
       break;
-    case ROT:
-      rot_norm_ = param_10bit_to_f32(value);
+    case SHAPE:
+      shape_sel_ = static_cast<uint8_t>(fx::clip(static_cast<float>(value), 0.f, static_cast<float>(NUM_SHAPES - 1)));
       break;
     default:
       break;
@@ -84,14 +95,25 @@ public:
 
   const char *getParameterStrValue(uint8_t index, int32_t value) const override final
   {
-    if (index != TIME)
-      return nullptr;
-    static const char *kNames[NUM_TIMES] = {"1/16", "1/8", "1/8D", "1/4", "1/4D", "1/2"};
-    if (value < 0)
-      value = 0;
-    if (value >= NUM_TIMES)
-      value = NUM_TIMES - 1;
-    return kNames[value];
+    if (index == TIME)
+    {
+      static const char *kTimeNames[NUM_TIMES] = {"1/16", "1/8", "1/8D", "1/4", "1/4D", "1/2"};
+      if (value < 0)
+        value = 0;
+      if (value >= NUM_TIMES)
+        value = NUM_TIMES - 1;
+      return kTimeNames[value];
+    }
+    if (index == SHAPE)
+    {
+      static const char *kShapeNames[NUM_SHAPES] = {"SQR", "SAW", "RAMP", "TRI", "EXP"};
+      if (value < 0)
+        value = 0;
+      if (value >= NUM_SHAPES)
+        value = NUM_SHAPES - 1;
+      return kShapeNames[value];
+    }
+    return nullptr;
   }
 
   void init(float *allocated_buffer) override final
@@ -110,8 +132,8 @@ public:
     feed_norm_ = 0.55f;
     hdamp_norm_ = 0.18f;
     ldamp_norm_ = 0.42f; // default: low damp engaged
-    rot_norm_ = 0.f;
     time_sel_ = TIME_8D;
+    shape_sel_ = SHAPE_SQR;
     reset();
   }
 
@@ -222,8 +244,12 @@ public:
 
       if (running_ && step_samples > 1.f)
       {
-        const float phase = samples_into_step_ / step_samples;
-        const float target = (step_open_ && phase < kGateDuty) ? 1.f : 0.f;
+        float phase = samples_into_step_ / step_samples;
+        if (phase < 0.f)
+          phase = 0.f;
+        if (phase > 1.f)
+          phase = 1.f;
+        const float target = gateShape(phase, step_open_);
         gate_ += (target - gate_) * gate_smooth;
       }
       else
@@ -287,13 +313,37 @@ private:
     return kBeats[time_sel_ < NUM_TIMES ? time_sel_ : TIME_8D];
   }
 
+  float gateShape(float phase, bool hit) const
+  {
+    if (!hit)
+      return 0.f;
+
+    switch (shape_sel_)
+    {
+    case SHAPE_SAW:
+      // Decaying saw: open at the step start, closed by the end.
+      return 1.f - phase;
+    case SHAPE_RAMP:
+      return phase;
+    case SHAPE_TRI:
+      return (phase < 0.5f) ? (phase * 2.f) : (2.f - phase * 2.f);
+    case SHAPE_EXP:
+    {
+      // Quadratic decay — softer than linear SAW, still libm-free.
+      const float remain = 1.f - phase;
+      return remain * remain;
+    }
+    case SHAPE_SQR:
+    default:
+      return (phase < kGateDuty) ? 1.f : 0.f;
+    }
+  }
+
   void applyStep(uint32_t step_index)
   {
     samples_into_step_ = 0.f;
     const uint32_t hits = 1U + static_cast<uint32_t>(dens_norm_ * static_cast<float>(kSteps - 1U));
-    const uint32_t rotate = static_cast<uint32_t>(rot_norm_ * static_cast<float>(kSteps));
-    const uint32_t rotated = (step_index + rotate) % kSteps;
-    step_open_ = fx::euclidHit(rotated, hits, kSteps);
+    step_open_ = fx::euclidHit(step_index % kSteps, hits, kSteps);
   }
 
   void syncToNearestClockAsStep0()
@@ -356,7 +406,6 @@ private:
   float feed_norm_ = 0.55f;
   float hdamp_norm_ = 0.18f;
   float ldamp_norm_ = 0.42f;
-  float rot_norm_ = 0.f;
   float samples_since_tick_ = 0.f;
   float samples_into_step_ = 0.f;
   float gate_ = 1.f;
@@ -364,6 +413,7 @@ private:
 
   uint32_t next_step_ = 0U;
   uint8_t time_sel_ = TIME_8D;
+  uint8_t shape_sel_ = SHAPE_SQR;
   bool pad_held_ = false;
   bool running_ = false;
   bool use_host_clock_ = false;

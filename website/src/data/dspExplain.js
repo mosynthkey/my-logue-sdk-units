@@ -130,11 +130,12 @@ export const dspExplainById = {
   In[Audio in] --> Mix`,
   },
   stepgatedelay: {
-    en: "Euclidean 1/16 gate into a tempo delay. Pad-down captures the nearest 16th as relative step 0. X = hit density among 16, Y = delay wet. Default time is a dotted eighth. Feedback high/low damp; low damp is on by default.",
-    ja: "ユークリッド1/16ゲートをテンポディレイへ送ります。パッド押下で最寄りの16分が相対ステップ0。Xは16ステップ中の密度、YはディレイWet。既定タイムは付点8分。FBにハイ／ローダンプ（既定でローダンプON）。",
+    en: "Euclidean 1/16 gate into a tempo delay. Pad-down captures the nearest 16th as relative step 0. X = hit density among 16, Y = delay wet. SHAPE selects the per-step envelope (SQR / decaying SAW / RAMP / TRI / EXP). Default time is a dotted eighth. Feedback high/low damp; low damp is on by default.",
+    ja: "ユークリッド1/16ゲートをテンポディレイへ送ります。パッド押下で最寄りの16分が相対ステップ0。Xは16ステップ中の密度、YはディレイWet。SHAPEでゲート波形（SQR / 減衰SAW / RAMP / TRI / EXP）。既定タイムは付点8分。FBにハイ／ローダンプ（既定でローダンプON）。",
     mermaid: `flowchart LR
   Clock[Nearest 16th] --> Euclid[Euclid density]
   Pad[Pad hold] --> Euclid
+  Shape[SHAPE envelope] --> Gate
   In[Audio in] --> Gate[Step gate] --> Delay[Tempo delay]
   Euclid --> Gate
   Delay --> Mix[Dry or wet] --> Out[Out]

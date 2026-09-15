@@ -61,7 +61,7 @@ const __unit_header genericfx_unit_header_t unit_header = {
             {0, 1023, 0, 184, k_unit_param_type_none, 0, 0, 0, {"HDAMP"}},
             {0, 1023, 0, 430, k_unit_param_type_none, 0, 0, 0, {"LDAMP"}},
             {0, 5, 0, 2, k_unit_param_type_strings, 0, 0, 0, {"TIME"}},
-            {0, 1023, 0, 0, k_unit_param_type_none, 0, 0, 0, {"ROT"}}},
+            {0, 4, 0, 0, k_unit_param_type_strings, 0, 0, 0, {"SHAPE"}}},
     },
     .default_mappings = {
         {k_genericfx_param_assign_x, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 460},
@@ -71,6 +71,6 @@ const __unit_header genericfx_unit_header_t unit_header = {
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 184},
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 430},
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 5, 2},
-        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 0},
+        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 4, 0},
     },
 };
