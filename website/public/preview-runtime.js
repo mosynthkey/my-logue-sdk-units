@@ -212,20 +212,20 @@
     }
   }
 
-  function scheduleSawPad(context, destination, time, frequencies, duration, gain = 0.055) {
-    const attack = Math.min(0.08, duration * 0.18);
-    const release = Math.min(0.22, duration * 0.35);
-    const sustainEnd = Math.max(time + attack + 0.02, time + duration - release);
-    const stopAt = time + duration + 0.04;
+  function scheduleSawPad(context, destination, time, frequencies, duration, gain = 0.048) {
+    const attack = Math.min(0.18, duration * 0.12);
+    const release = Math.min(0.45, duration * 0.22);
+    const sustainEnd = Math.max(time + attack + 0.05, time + duration - release);
+    const stopAt = time + duration + 0.06;
     for (let voiceIndex = 0; voiceIndex < frequencies.length; voiceIndex += 1) {
       const oscillator = context.createOscillator();
       oscillator.type = "sawtooth";
       oscillator.frequency.value = frequencies[voiceIndex];
       const filter = context.createBiquadFilter();
       filter.type = "lowpass";
-      filter.Q.value = 0.7;
-      filter.frequency.setValueAtTime(1600, time);
-      filter.frequency.linearRampToValueAtTime(1100, sustainEnd);
+      filter.Q.value = 0.65;
+      filter.frequency.setValueAtTime(1500, time);
+      filter.frequency.linearRampToValueAtTime(980, sustainEnd);
       const envelope = context.createGain();
       envelope.gain.setValueAtTime(0.0001, time);
       envelope.gain.exponentialRampToValueAtTime(gain, time + attack);
@@ -283,16 +283,49 @@
     return nodes;
   }
 
-  const LOOP_SOURCE_IDS = new Set(["house", "techno", "garage", "acid", "kick", "breakbeat", "stab", "sawpad"]);
+  const CHORD_PAD_SOURCE_IDS = new Set(["chord1", "chord2", "chord3"]);
+  const LOOP_SOURCE_IDS = new Set([
+    "house", "techno", "garage", "acid", "kick", "breakbeat", "stab",
+    "chord1", "chord2", "chord3",
+  ]);
   const OSCILLATOR_SOURCE_IDS = new Set(["sawtooth", "square", "sine", "triangle"]);
   const HOUSE_STAB = [220, 261.63, 329.63, 392];
-  // Am → F → C → G, one chord per beat within the 16-step bar.
-  const SAWPAD_CHORDS = [
-    [220.00, 261.63, 329.63, 440.00],
-    [174.61, 220.00, 261.63, 349.23],
-    [130.81, 164.81, 196.00, 261.63],
-    [196.00, 246.94, 293.66, 392.00],
-  ];
+  // One chord per bar. Each progression is 8 bars long.
+  const CHORD_PAD_PROGRESSIONS = {
+    // Am F C G Am Dm Em G
+    chord1: [
+      [220.00, 261.63, 329.63, 440.00],
+      [174.61, 220.00, 261.63, 349.23],
+      [130.81, 164.81, 196.00, 261.63],
+      [196.00, 246.94, 293.66, 392.00],
+      [220.00, 261.63, 329.63, 440.00],
+      [146.83, 174.61, 220.00, 293.66],
+      [164.81, 196.00, 246.94, 329.63],
+      [196.00, 246.94, 293.66, 392.00],
+    ],
+    // Em C G D Am Em F#m B7
+    chord2: [
+      [164.81, 196.00, 246.94, 329.63],
+      [130.81, 164.81, 196.00, 261.63],
+      [196.00, 246.94, 293.66, 392.00],
+      [146.83, 185.00, 220.00, 293.66],
+      [220.00, 261.63, 329.63, 440.00],
+      [164.81, 196.00, 246.94, 329.63],
+      [185.00, 220.00, 277.18, 369.99],
+      [123.47, 155.56, 185.00, 246.94],
+    ],
+    // Dm Bb F C Gm Eb Bb A
+    chord3: [
+      [146.83, 174.61, 220.00, 293.66],
+      [116.54, 146.83, 174.61, 233.08],
+      [174.61, 220.00, 261.63, 349.23],
+      [130.81, 164.81, 196.00, 261.63],
+      [196.00, 233.08, 293.66, 392.00],
+      [155.56, 196.00, 233.08, 311.13],
+      [116.54, 146.83, 174.61, 233.08],
+      [110.00, 138.59, 164.81, 220.00],
+    ],
+  };
   const ACID_NOTES = {
     0: [110, null],
     1: [110, null],
@@ -418,10 +451,12 @@
       return;
     }
 
-    if (sourceId === "sawpad" && onBeat) {
-      const chordIndex = Math.floor(stepIndex / 4) % SAWPAD_CHORDS.length;
-      const chordDuration = stepInterval * 4.25;
-      scheduleSawPad(context, destination, time, SAWPAD_CHORDS[chordIndex], chordDuration);
+    if (CHORD_PAD_SOURCE_IDS.has(sourceId) && stepIndex % 16 === 0) {
+      const progression = CHORD_PAD_PROGRESSIONS[sourceId];
+      const barIndex = Math.floor(stepIndex / 16) % progression.length;
+      // Hold one chord for a full bar, with a little overlap into the next.
+      const chordDuration = stepInterval * 16.35;
+      scheduleSawPad(context, destination, time, progression[barIndex], chordDuration);
     }
   }
 
@@ -473,15 +508,23 @@
       }
     }
 
+    function loopLengthForSource(id) {
+      if (CHORD_PAD_SOURCE_IDS.has(id)) {
+        return CHORD_PAD_PROGRESSIONS[id].length * 16;
+      }
+      return 16;
+    }
+
     function tick() {
       if (!playing || !LOOP_SOURCE_IDS.has(sourceId)) {
         return;
       }
       const stepInterval = (60 / currentBpm) / 4;
+      const loopLength = loopLengthForSource(sourceId);
       while (nextStepTime < context.currentTime + 0.15) {
         scheduleLoopStep(context, mixGain, noiseBuffer, sourceId, stepIndex, nextStepTime, stepInterval);
         nextStepTime += stepInterval;
-        stepIndex = (stepIndex + 1) % 16;
+        stepIndex = (stepIndex + 1) % loopLength;
       }
     }
 
