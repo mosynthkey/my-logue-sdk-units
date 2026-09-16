@@ -4,7 +4,8 @@
  * File: dubthrow.h
  *
  * Dub-desk send throw delay for NTS-3. Dry always passes; pad throw feeds a
- * BPM-synced stereo delay. Feedback path: soft sat → bandpass (Y = tone).
+ * BPM-synced stereo delay. Feedback path: mild soft sat → bandpass (Y = tone),
+ * then loop AGC so high FDBK sustains without parking on the rails.
  * Release stops new send while the loop decays. Not a dry-kill echo out.
  */
 
@@ -23,8 +24,13 @@ public:
   static constexpr float kMinBpm = 40.f;
   static constexpr float kMaxBpm = 300.f;
   static constexpr float kSpreadMax = 0.06f;
-  static constexpr float kDriveGain = 1.35f;
-  static constexpr float kFeedbackMax = 0.96f;
+  // Mild tape-ish drive only — large pre-gain + BP makeup was railing the loop.
+  static constexpr float kDriveGain = 1.06f;
+  static constexpr float kFilterMakeup = 1.12f;
+  static constexpr float kFeedbackMax = 0.97f;
+  static constexpr float kLoopCeiling = 0.82f;
+  static constexpr float kSendDuckStart = 0.55f;
+  static constexpr float kSendDuckFloor = 0.32f;
 
   uint32_t getBufferSize() const override final
   {
@@ -171,6 +177,7 @@ public:
     refreshTone();
     resetFilterState();
     lim_env_ = 0.f;
+    loop_env_ = 0.f;
   }
 
   void teardown() override final
@@ -187,6 +194,7 @@ public:
     send_smooth_ = 0.f;
     throw_smooth_ = 0.f;
     lim_env_ = 0.f;
+    loop_env_ = 0.f;
     resetFilterState();
     if (delay_left_ != nullptr)
     {
@@ -268,6 +276,9 @@ public:
     const float smooth_coeff = 1.f / 48.f;
     const float lim_attack = 1.f / 16.f;
     const float lim_release = 1.f / 480.f;
+    // Loop AGC: fast grab, slower release so high FDBK can bloom without rail-lock.
+    const float loop_attack = 1.f / 32.f;
+    const float loop_release = 1.f / 960.f;
 
     for (uint32_t sampleIndex = 0; sampleIndex < frames; ++sampleIndex)
     {
@@ -279,8 +290,16 @@ public:
       throw_smooth_ += (throw_norm_ - throw_smooth_) * smooth_coeff;
 
       const float send_amount = throw_smooth_ * depth_ * send_smooth_;
-      const float send_left = live_left * send_amount;
-      const float send_right = live_right * send_amount;
+      // Duck new throw into an already-hot tank (desk-style, avoids instant squash).
+      float send_duck = 1.f;
+      if (loop_env_ > kSendDuckStart)
+      {
+        const float duck_amount =
+            fx::clip01((loop_env_ - kSendDuckStart) / (kLoopCeiling - kSendDuckStart + 1e-6f));
+        send_duck = fx::mix(1.f, kSendDuckFloor, duck_amount);
+      }
+      const float send_left = live_left * send_amount * send_duck;
+      const float send_right = live_right * send_amount * send_duck;
 
       const float delayed_left = readDelay(delay_left_, write_pos_, delay_l);
       const float delayed_right = readDelay(delay_right_, write_pos_, delay_r);
@@ -313,28 +332,38 @@ public:
         wet_right = delayed_mono;
       }
 
-      const float filtered_left = processFeedbackFilter(fb_src_left, svf_low_l_, svf_band_l_);
-      const float filtered_right = processFeedbackFilter(fb_src_right, svf_low_r_, svf_band_r_);
-      const float driven_left = fx::softclip(fx::clip(filtered_left * kDriveGain, -1.5f, 1.5f));
-      const float driven_right = fx::softclip(fx::clip(filtered_right * kDriveGain, -1.5f, 1.5f));
+      // Soft sat first, then tone filter — sat harmonics get filtered, BP peak is not pre-driven.
+      const float sat_left = fx::softclip(fx::clip(fb_src_left * kDriveGain, -1.5f, 1.5f));
+      const float sat_right = fx::softclip(fx::clip(fb_src_right * kDriveGain, -1.5f, 1.5f));
+      const float filtered_left = processFeedbackFilter(sat_left, svf_low_l_, svf_band_l_);
+      const float filtered_right = processFeedbackFilter(sat_right, svf_low_r_, svf_band_r_);
 
       float write_left = 0.f;
       float write_right = 0.f;
       if (mode_ == MODE_MONO)
       {
         const float mono_send = 0.5f * (send_left + send_right);
-        const float mono_fb = 0.5f * (driven_left + driven_right) * feedback;
+        const float mono_fb = 0.5f * (filtered_left + filtered_right) * feedback;
         write_left = mono_send + mono_fb;
         write_right = write_left;
       }
       else
       {
-        write_left = send_left + driven_left * feedback;
-        write_right = send_right + driven_right * feedback;
+        write_left = send_left + filtered_left * feedback;
+        write_right = send_right + filtered_right * feedback;
       }
 
-      // Keep the loop finite under near-self-oscillation (wet limiter alone is not enough).
-      // Clip before softclip: fastertanhf is unusable for |x| ≫ 1.
+      const float write_peak = fx::absf(write_left) > fx::absf(write_right) ? fx::absf(write_left)
+                                                                             : fx::absf(write_right);
+      const float loop_coeff = (write_peak > loop_env_) ? loop_attack : loop_release;
+      loop_env_ += (write_peak - loop_env_) * loop_coeff;
+      float loop_gain = 1.f;
+      if (loop_env_ > kLoopCeiling)
+        loop_gain = kLoopCeiling / loop_env_;
+      write_left *= loop_gain;
+      write_right *= loop_gain;
+
+      // Safety only — AGC should keep most of the loop below hard softclip.
       write_left = fx::softclip(fx::clip(write_left, -1.5f, 1.5f));
       write_right = fx::softclip(fx::clip(write_right, -1.5f, 1.5f));
 
@@ -410,9 +439,12 @@ private:
     low += svf_f_ * band;
     const float high = input - low - svf_damp_ * band;
     band += svf_f_ * high;
+    // Bound SVF state so a hot loop cannot run away into denormals / huge BP peaks.
+    low = fx::clip(low, -4.f, 4.f);
+    band = fx::clip(band, -4.f, 4.f);
     // Blend BP with a touch of HP so lows damp in the loop (dub tape feel).
-    // Makeup keeps FDBK mid audible through the narrow BP.
-    return (band * 0.85f + high * 0.15f) * 1.8f;
+    // Modest makeup — former 1.8× made high FDBK rail within a few echoes.
+    return (band * 0.85f + high * 0.15f) * kFilterMakeup;
   }
 
   static float readDelay(const float *buffer, uint32_t write_pos, float delay_samples)
@@ -453,4 +485,5 @@ private:
   float svf_low_r_ = 0.f;
   float svf_band_r_ = 0.f;
   float lim_env_ = 0.f;
+  float loop_env_ = 0.f;
 };
