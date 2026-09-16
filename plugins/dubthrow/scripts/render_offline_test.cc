@@ -111,6 +111,93 @@ int main()
     std::printf("FAIL: limiter/feedback runaway\n");
     return 1;
   }
+
+  // High FDBK must bloom without parking on softclip rails.
+  // Dark tone previously railed by echo 2–3 (peaks ≥ 0.72).
+  DubThrow hot;
+  std::vector<float> hot_ram(hot.getBufferSize(), 0.f);
+  hot.init(hot_ram.data());
+  hot.setTempo(120.f);
+  hot.setParameter(DubThrow::THROW, 1023);
+  hot.setParameter(DubThrow::TONE, 200);
+  hot.setParameter(DubThrow::DEPTH, 1000);
+  hot.setParameter(DubThrow::TIME, DubThrow::TIME_8);
+  hot.setParameter(DubThrow::FDBK, 1023);
+  hot.setParameter(DubThrow::SPRD, 0);
+  hot.setParameter(DubThrow::MODE, DubThrow::MODE_DUAL);
+  hot.setParameter(DubThrow::TOUCH, DubThrow::TOUCH_ALWAYS);
+
+  const uint32_t delay_samples = 12000U; // 1/8 @ 120 BPM
+  const uint32_t hot_frames = delay_samples * 6U;
+  std::vector<float> hot_left(hot_frames, 0.f);
+  std::vector<float> hot_right(hot_frames, 0.f);
+  for (uint32_t sampleIndex = 0; sampleIndex < delay_samples / 2U; ++sampleIndex)
+  {
+    const float sample = 0.5f * sinf(6.28318530718f * 440.f * sampleIndex / 48000.f);
+    hot_left[sampleIndex] = sample;
+    hot_right[sampleIndex] = sample;
+  }
+  std::vector<float> hot_mono;
+  render(hot, hot_left.data(), hot_right.data(), hot_frames, true, hot_mono);
+
+  const float peak_echo2 = windowPeak(hot_mono, delay_samples * 2U, delay_samples);
+  const float peak_echo3 = windowPeak(hot_mono, delay_samples * 3U, delay_samples);
+
+  std::printf("high_fdbk_dark echo2=%.4f echo3=%.4f\n", peak_echo2, peak_echo3);
+
+  if (peak_echo2 > 0.70f || peak_echo3 > 0.72f)
+  {
+    std::printf("FAIL: high feedback saturated within a few echoes\n");
+    return 1;
+  }
+
+  // Mid tone + max FDBK: crest must stay musical after several recirculations.
+  DubThrow mid;
+  std::vector<float> mid_ram(mid.getBufferSize(), 0.f);
+  mid.init(mid_ram.data());
+  mid.setTempo(120.f);
+  mid.setParameter(DubThrow::THROW, 1023);
+  mid.setParameter(DubThrow::TONE, 563);
+  mid.setParameter(DubThrow::DEPTH, 1000);
+  mid.setParameter(DubThrow::TIME, DubThrow::TIME_8);
+  mid.setParameter(DubThrow::FDBK, 1023);
+  mid.setParameter(DubThrow::SPRD, 0);
+  mid.setParameter(DubThrow::MODE, DubThrow::MODE_DUAL);
+  mid.setParameter(DubThrow::TOUCH, DubThrow::TOUCH_ALWAYS);
+
+  const uint32_t mid_frames = delay_samples * 8U;
+  std::vector<float> mid_left(mid_frames, 0.f);
+  std::vector<float> mid_right(mid_frames, 0.f);
+  for (uint32_t sampleIndex = 0; sampleIndex < delay_samples / 2U; ++sampleIndex)
+  {
+    const float sample = 0.5f * sinf(6.28318530718f * 440.f * sampleIndex / 48000.f);
+    mid_left[sampleIndex] = sample;
+    mid_right[sampleIndex] = sample;
+  }
+  std::vector<float> mid_mono;
+  render(mid, mid_left.data(), mid_right.data(), mid_frames, true, mid_mono);
+
+  float peak_echo6 = 0.f;
+  float sum2_echo6 = 0.f;
+  for (uint32_t sampleIndex = 0; sampleIndex < delay_samples; ++sampleIndex)
+  {
+    const float sample = mid_mono[delay_samples * 6U + sampleIndex];
+    const float abs_sample = sample < 0.f ? -sample : sample;
+    if (abs_sample > peak_echo6)
+      peak_echo6 = abs_sample;
+    sum2_echo6 += sample * sample;
+  }
+  const float rms_echo6 = std::sqrt(sum2_echo6 / static_cast<float>(delay_samples));
+  const float crest_echo6 = peak_echo6 / (rms_echo6 + 1e-9f);
+
+  std::printf("high_fdbk_mid echo6=%.4f crest6=%.2f\n", peak_echo6, crest_echo6);
+
+  if (crest_echo6 < 2.5f)
+  {
+    std::printf("FAIL: high feedback crest collapsed (softclip rail lock)\n");
+    return 1;
+  }
+
   std::printf("OK\n");
   return 0;
 }

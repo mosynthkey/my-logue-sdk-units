@@ -31,7 +31,7 @@
     {
       "name": "FDBK",
       "role": "Edit",
-      "detail": "Base feedback ceiling (high for near self-oscillation)"
+      "detail": "Feedback amount (high blooms toward self-oscillation; loop AGC avoids instant saturation)"
     },
     {
       "name": "SPRD",
