@@ -5,9 +5,13 @@
  *
  * Tempo-synced Glitch²-style XY pad for NTS-3. A stereo ring buffer keeps
  * AUDIO IN (prefer get_raw_input; unit_render is muted while the pad is up).
- * Pad up bypasses. Pad down engages one of eight Illformed-style modules:
- * retrigger, reverse, shuffle, tape stop, stretch, gate, crush, delay.
- * X selects the module (scene), Y sets the musical slice / rate.
+ * Pad up bypasses. Touch start region locks one of four modules, then Y
+ * drives slice / rate while held (Passort-style assort):
+ *
+ *   Top-left     → Retrigger
+ *   Top-right    → Reverse
+ *   Bottom-left  → Shuffle
+ *   Bottom-right → Gate
  */
 
 #include "macros.h"
@@ -20,11 +24,9 @@ class GlitchPad : public Processor
 {
 public:
   static constexpr uint32_t kMaxBufSamples = 288000U;
-  static constexpr uint32_t kMaxDelaySamples = 48000U;
   static constexpr uint32_t kMinSliceSamples = 64U;
   static constexpr uint32_t kMinCaptureSamples = 1024U;
   static constexpr uint32_t kXfadeSamples = 96U;
-  static constexpr uint32_t kGrainCount = 2U;
   static constexpr float kMinBpm = 40.f;
   static constexpr float kMaxBpm = 300.f;
   static constexpr float kMinCapturePeak = 0.003f;
@@ -32,16 +34,13 @@ public:
 
   uint32_t getBufferSize() const override final
   {
-    return kMaxBufSamples * 2U + kMaxDelaySamples * 2U;
+    return kMaxBufSamples * 2U;
   }
 
   enum
   {
-    MODE = 0U,
-    TIME,
-    MIX,
+    MIX = 0U,
     DECAY,
-    CRUSH,
     SYNC,
     HOLD,
     NUM_PARAMS
@@ -49,14 +48,11 @@ public:
 
   enum
   {
-    MODE_RTRG = 0,
+    MODE_NONE = 0,
+    MODE_RTRG,
     MODE_REV,
     MODE_SHUF,
-    MODE_TAPE,
-    MODE_STRCH,
     MODE_GATE,
-    MODE_CRUSH,
-    MODE_DLY,
     NUM_MODES
   };
 
@@ -80,25 +76,6 @@ public:
   {
     switch (index)
     {
-    case MODE:
-    {
-      int32_t mode = value;
-      if (mode < 0)
-        mode = 0;
-      if (mode >= NUM_MODES)
-        mode = NUM_MODES - 1;
-      if (mode_ != static_cast<uint8_t>(mode))
-      {
-        mode_ = static_cast<uint8_t>(mode);
-        if (active_)
-          engageCurrentMode();
-      }
-      break;
-    }
-    case TIME:
-      time_norm_ = param_10bit_to_f32(value);
-      updateSliceLength();
-      break;
     case MIX:
       mix_ = value / 1000.f;
       if (mix_ < 0.f)
@@ -108,9 +85,6 @@ public:
       break;
     case DECAY:
       decay_norm_ = param_10bit_to_f32(value);
-      break;
-    case CRUSH:
-      crush_norm_ = param_10bit_to_f32(value);
       break;
     case SYNC:
     {
@@ -145,13 +119,9 @@ public:
 
   const char *getParameterStrValue(uint8_t index, int32_t value) const override final
   {
-    static const char *mode_names[NUM_MODES] = {"RTRG", "REV", "SHUF", "TAPE",
-                                                "STRCH", "GATE", "CRUSH", "DLY"};
     static const char *sync_names[NUM_SYNCS] = {"EVEN", "TRIP", "DOT", "FREE"};
     static const char *hold_names[NUM_HOLDS] = {"GATE", "LATCH"};
 
-    if (index == MODE && value >= 0 && value < NUM_MODES)
-      return mode_names[value];
     if (index == SYNC && value >= 0 && value < NUM_SYNCS)
       return sync_names[value];
     if (index == HOLD && value >= 0 && value < NUM_HOLDS)
@@ -163,8 +133,6 @@ public:
   {
     buf_left_ = allocated_buffer;
     buf_right_ = allocated_buffer + kMaxBufSamples;
-    delay_left_ = allocated_buffer + kMaxBufSamples * 2U;
-    delay_right_ = allocated_buffer + kMaxBufSamples * 2U + kMaxDelaySamples;
 
     for (uint32_t sampleIndex = 0; sampleIndex < getBufferSize(); ++sampleIndex)
       allocated_buffer[sampleIndex] = 0.f;
@@ -172,8 +140,7 @@ public:
     time_norm_ = 0.55f;
     mix_ = 1.f;
     decay_norm_ = 0.25f;
-    crush_norm_ = 0.f;
-    mode_ = MODE_RTRG;
+    mode_ = MODE_NONE;
     sync_ = SYNC_EVEN;
     hold_ = HOLD_GATE;
     bpm_ = 120.f;
@@ -186,47 +153,33 @@ public:
   {
     buf_left_ = nullptr;
     buf_right_ = nullptr;
-    delay_left_ = nullptr;
-    delay_right_ = nullptr;
   }
 
   void reset() override final
   {
     write_pos_ = 0U;
-    delay_pos_ = 0U;
     captured_samples_ = 0U;
     arm_samples_ = 0U;
     captured_peak_ = 0.f;
     pad_held_ = false;
     active_ = false;
     arming_ = false;
+    mode_ = MODE_NONE;
     wet_ = 0.f;
     wet_target_ = 0.f;
+    touch_x_ = 512.f;
+    touch_y_ = 512.f;
     play_pos_ = 0.f;
     play_dir_ = 1.f;
     repeat_gain_ = 1.f;
-    tape_rate_ = 1.f;
-    tape_progress_ = 0.f;
     gate_phase_ = 0.f;
     gate_level_ = 0.f;
-    crush_hold_left_ = 0.f;
-    crush_hold_right_ = 0.f;
-    crush_counter_ = 0;
     rng_state_ = 0xA5A5A5A5U;
     frozen_origin_ = 0U;
     frozen_length_ = 0U;
     slice_play_length_ = kMinSliceSamples;
     shuf_origin_ = 0U;
     shuf_reverse_ = false;
-    stretch_read_ = 0.f;
-    grain_spawn_ = 0.f;
-
-    for (uint32_t grainIndex = 0; grainIndex < kGrainCount; ++grainIndex)
-    {
-      grains_[grainIndex].age = 1.f;
-      grains_[grainIndex].pos = 0.f;
-      grains_[grainIndex].length = 1.f;
-    }
 
     if (buf_left_ != nullptr)
     {
@@ -234,14 +187,6 @@ public:
       {
         buf_left_[sampleIndex] = 0.f;
         buf_right_[sampleIndex] = 0.f;
-      }
-    }
-    if (delay_left_ != nullptr)
-    {
-      for (uint32_t sampleIndex = 0; sampleIndex < kMaxDelaySamples; ++sampleIndex)
-      {
-        delay_left_[sampleIndex] = 0.f;
-        delay_right_[sampleIndex] = 0.f;
       }
     }
   }
@@ -259,8 +204,6 @@ public:
   void touchEvent(uint8_t id, uint8_t phase, uint32_t x, uint32_t y) override final
   {
     (void)id;
-    (void)x;
-    (void)y;
 
     if (phase == k_unit_touch_phase_ended || phase == k_unit_touch_phase_cancelled)
     {
@@ -274,11 +217,19 @@ public:
         phase != k_unit_touch_phase_stationary)
       return;
 
+    touch_x_ = static_cast<float>(x);
+    touch_y_ = static_cast<float>(y);
+
     const bool new_touch = !pad_held_;
     pad_held_ = true;
 
     if (phase == k_unit_touch_phase_began || new_touch)
+    {
+      mode_ = modeFromStart(x, y);
       engageCurrentMode();
+    }
+
+    updateTimeFromTouch();
   }
 
   void process(const float *__restrict in, float *__restrict out, uint32_t frames) override final
@@ -329,7 +280,7 @@ public:
 
       advanceWet();
 
-      if (wet_ <= 0.f)
+      if (wet_ <= 0.f || mode_ == MODE_NONE)
       {
         out[0] = live_left;
         out[1] = live_right;
@@ -343,7 +294,6 @@ public:
       float fx_left = live_left;
       float fx_right = live_right;
       renderMode(live_left, live_right, fx_left, fx_right);
-      applyCrushOverlay(fx_left, fx_right);
 
       const float wet_gain = wet_ * mix_;
       const float dry_gain = 1.f - wet_gain;
@@ -367,22 +317,6 @@ public:
   uint8_t currentMode() const { return mode_; }
 
 private:
-  struct Grain
-  {
-    float pos;
-    float age;
-    float length;
-  };
-
-  static float clamp01(float value)
-  {
-    if (value < 0.f)
-      return 0.f;
-    if (value > 1.f)
-      return 1.f;
-    return value;
-  }
-
   static float absf(float value)
   {
     return value < 0.f ? -value : value;
@@ -397,23 +331,28 @@ private:
     return index;
   }
 
+  static uint8_t modeFromStart(uint32_t x, uint32_t y)
+  {
+    const bool left = x < 512U;
+    const bool top = y >= 512U;
+    if (left && top)
+      return MODE_RTRG;
+    if (!left && top)
+      return MODE_REV;
+    if (left && !top)
+      return MODE_SHUF;
+    return MODE_GATE;
+  }
+
   bool needsFrozenAudio() const
   {
-    return mode_ == MODE_RTRG || mode_ == MODE_REV || mode_ == MODE_SHUF ||
-           mode_ == MODE_TAPE || mode_ == MODE_STRCH;
+    return mode_ == MODE_RTRG || mode_ == MODE_REV || mode_ == MODE_SHUF;
   }
 
   uint32_t neededCaptureSamples() const
   {
-    if (mode_ == MODE_SHUF || mode_ == MODE_STRCH)
+    if (mode_ == MODE_SHUF)
       return loop_length_ < kMinCaptureSamples ? kMinCaptureSamples : loop_length_;
-    if (mode_ == MODE_TAPE)
-    {
-      const uint32_t tape_len = slice_length_ * 4U;
-      if (tape_len < kMinCaptureSamples)
-        return kMinCaptureSamples;
-      return tape_len > loop_length_ ? loop_length_ : tape_len;
-    }
     return slice_length_ < kMinCaptureSamples ? kMinCaptureSamples : slice_length_;
   }
 
@@ -430,7 +369,7 @@ private:
 
   void engageCurrentMode()
   {
-    updateSliceLength();
+    updateTimeFromTouch();
     active_ = true;
     arming_ = false;
     rng_state_ ^= write_pos_ + 0x9E3779B9U;
@@ -462,12 +401,7 @@ private:
     play_pos_ = 0.f;
     play_dir_ = 1.f;
     repeat_gain_ = 1.f;
-    tape_rate_ = 1.f;
-    tape_progress_ = 0.f;
     gate_phase_ = 0.f;
-    crush_counter_ = 0;
-    stretch_read_ = 0.f;
-    grain_spawn_ = 0.f;
     shuf_origin_ = 0U;
     shuf_reverse_ = false;
     slice_play_length_ = slice_length_;
@@ -476,21 +410,12 @@ private:
     if (slice_play_length_ < kMinSliceSamples)
       slice_play_length_ = kMinSliceSamples;
 
-    for (uint32_t grainIndex = 0; grainIndex < kGrainCount; ++grainIndex)
-    {
-      grains_[grainIndex].age = 1.f;
-      grains_[grainIndex].pos = 0.f;
-      grains_[grainIndex].length = 1.f;
-    }
-
     if (mode_ == MODE_SHUF)
       pickShuffleSlice();
-    if (mode_ == MODE_STRCH)
+    if (mode_ == MODE_REV)
     {
-      spawnGrain(0U);
-      grain_spawn_ = grains_[0].length * 0.5f;
-      spawnGrain(1U);
-      grain_spawn_ = 0.f;
+      play_pos_ = static_cast<float>(slice_play_length_ > 1U ? slice_play_length_ - 1U : 0U);
+      play_dir_ = -1.f;
     }
   }
 
@@ -548,6 +473,16 @@ private:
     return beats;
   }
 
+  void updateTimeFromTouch()
+  {
+    time_norm_ = touch_y_ * (1.f / 1023.f);
+    if (time_norm_ < 0.f)
+      time_norm_ = 0.f;
+    if (time_norm_ > 1.f)
+      time_norm_ = 1.f;
+    updateSliceLength();
+  }
+
   void updateSliceLength()
   {
     float samples = timeBeats() * 60.f / bpm_ * getSampleRate();
@@ -601,7 +536,11 @@ private:
     }
 
     if (wet_ <= 0.f && wet_target_ <= 0.f && !arming_)
+    {
       active_ = false;
+      if (!pad_held_)
+        mode_ = MODE_NONE;
+    }
   }
 
   float nextRandom()
@@ -669,51 +608,6 @@ private:
     repeat_gain_ = 1.f;
   }
 
-  void spawnGrain(uint32_t grainIndex)
-  {
-    const float min_grain = getSampleRate() * 0.008f;
-    const float max_grain = getSampleRate() * 0.080f;
-    const float grain_samples = min_grain + (max_grain - min_grain) * (1.f - time_norm_);
-    grains_[grainIndex].length = grain_samples;
-    grains_[grainIndex].age = 0.f;
-    const float jitter = (nextRandom() * 2.f - 1.f) * decay_norm_ * grain_samples * 0.25f;
-    float pos = stretch_read_ + jitter;
-    if (pos < 0.f)
-      pos = 0.f;
-    if (frozen_length_ > 1U && pos > static_cast<float>(frozen_length_ - 1U))
-      pos = static_cast<float>(frozen_length_ - 1U);
-    grains_[grainIndex].pos = pos;
-  }
-
-  void applyCrush(float &left, float &right, float amount)
-  {
-    if (amount <= 0.001f)
-      return;
-
-    const float period = 1.f + amount * amount * 96.f;
-    crush_counter_ -= 1.f;
-    if (crush_counter_ <= 0.f)
-    {
-      crush_counter_ = period;
-      const float bits = 12.f - amount * 10.f;
-      float scale = fasterpowf(2.f, bits - 1.f);
-      if (scale < 1.f)
-        scale = 1.f;
-      crush_hold_left_ = static_cast<float>(static_cast<int32_t>(left * scale)) / scale;
-      crush_hold_right_ = static_cast<float>(static_cast<int32_t>(right * scale)) / scale;
-    }
-    left = crush_hold_left_;
-    right = crush_hold_right_;
-  }
-
-  void applyCrushOverlay(float &left, float &right)
-  {
-    if (mode_ == MODE_CRUSH)
-      return;
-    if (crush_norm_ > 0.01f)
-      applyCrush(left, right, crush_norm_ * 0.65f);
-  }
-
   void renderRetrigger(float &left, float &right)
   {
     const uint32_t window = slice_play_length_ < kMinSliceSamples ? kMinSliceSamples : slice_play_length_;
@@ -770,75 +664,6 @@ private:
     }
   }
 
-  void renderTape(float &left, float &right)
-  {
-    const uint32_t window = frozen_length_ < kMinSliceSamples ? kMinSliceSamples : frozen_length_;
-    const float stop_beats = 0.25f + decay_norm_ * 3.75f;
-    const float stop_samples = stop_beats * 60.f / bpm_ * getSampleRate();
-    tape_progress_ += 1.f / (stop_samples < 64.f ? 64.f : stop_samples);
-    if (tape_progress_ > 1.f)
-      tape_progress_ = 1.f;
-    const float remain = 1.f - tape_progress_;
-    tape_rate_ = remain * remain;
-    if (tape_rate_ < 0.02f)
-    {
-      left = 0.f;
-      right = 0.f;
-      return;
-    }
-    readFrozen(play_pos_, window, left, right);
-    play_pos_ += tape_rate_;
-    if (play_pos_ >= static_cast<float>(window))
-    {
-      left = 0.f;
-      right = 0.f;
-    }
-  }
-
-  void renderStretch(float &left, float &right)
-  {
-    const float speed = 0.12f + (1.f - time_norm_) * 0.88f;
-    const float hop = grains_[0].length > 8.f ? grains_[0].length * 0.5f : getSampleRate() * 0.02f;
-    grain_spawn_ += 1.f;
-    if (grain_spawn_ >= hop)
-    {
-      grain_spawn_ -= hop;
-      uint32_t oldest = 0U;
-      float oldest_age = grains_[0].age;
-      for (uint32_t grainIndex = 1; grainIndex < kGrainCount; ++grainIndex)
-      {
-        if (grains_[grainIndex].age > oldest_age)
-        {
-          oldest_age = grains_[grainIndex].age;
-          oldest = grainIndex;
-        }
-      }
-      spawnGrain(oldest);
-    }
-
-    left = 0.f;
-    right = 0.f;
-    const uint32_t window = frozen_length_ < kMinSliceSamples ? kMinSliceSamples : frozen_length_;
-    for (uint32_t grainIndex = 0; grainIndex < kGrainCount; ++grainIndex)
-    {
-      Grain &grain = grains_[grainIndex];
-      if (grain.age >= 1.f)
-        continue;
-      float g_left = 0.f;
-      float g_right = 0.f;
-      readFrozen(grain.pos, window, g_left, g_right);
-      const float env = grain.age < 0.5f ? grain.age * 2.f : (1.f - grain.age) * 2.f;
-      left += g_left * env;
-      right += g_right * env;
-      grain.pos += 1.f;
-      grain.age += 1.f / (grain.length < 8.f ? 8.f : grain.length);
-    }
-
-    stretch_read_ += speed;
-    if (window > 1U && stretch_read_ >= static_cast<float>(window))
-      stretch_read_ -= static_cast<float>(window);
-  }
-
   void renderGate(float live_left, float live_right, float &left, float &right)
   {
     const float step = static_cast<float>(slice_length_ < kMinSliceSamples ? kMinSliceSamples : slice_length_);
@@ -850,49 +675,6 @@ private:
     gate_level_ += (pulse - gate_level_) * (1.f - smooth);
     left = live_left * gate_level_;
     right = live_right * gate_level_;
-  }
-
-  void renderCrushLive(float live_left, float live_right, float &left, float &right)
-  {
-    left = live_left;
-    right = live_right;
-    const float amount = 0.15f + time_norm_ * 0.85f;
-    applyCrush(left, right, amount);
-    if (crush_norm_ > 0.01f)
-      applyCrush(left, right, clamp01(amount + crush_norm_ * 0.4f));
-  }
-
-  void renderDelay(float live_left, float live_right, float &left, float &right)
-  {
-    if (delay_left_ == nullptr)
-    {
-      left = live_left;
-      right = live_right;
-      return;
-    }
-
-    float delay_samples = timeBeats() * 60.f / bpm_ * getSampleRate();
-    if (delay_samples < 64.f)
-      delay_samples = 64.f;
-    if (delay_samples > static_cast<float>(kMaxDelaySamples - 4U))
-      delay_samples = static_cast<float>(kMaxDelaySamples - 4U);
-
-    const uint32_t delay_int = static_cast<uint32_t>(delay_samples);
-    int32_t read_index = static_cast<int32_t>(delay_pos_) - static_cast<int32_t>(delay_int);
-    if (read_index < 0)
-      read_index += static_cast<int32_t>(kMaxDelaySamples);
-    const uint32_t read_a = static_cast<uint32_t>(read_index);
-    const float delayed_left = delay_left_[read_a];
-    const float delayed_right = delay_right_[read_a];
-    const float feedback = 0.15f + decay_norm_ * 0.72f;
-    delay_left_[delay_pos_] = live_left + delayed_left * feedback;
-    delay_right_[delay_pos_] = live_right + delayed_right * feedback;
-    ++delay_pos_;
-    if (delay_pos_ >= kMaxDelaySamples)
-      delay_pos_ = 0U;
-
-    left = delayed_left;
-    right = delayed_right;
   }
 
   void renderMode(float live_left, float live_right, float &left, float &right)
@@ -908,20 +690,8 @@ private:
     case MODE_SHUF:
       renderShuffle(left, right);
       break;
-    case MODE_TAPE:
-      renderTape(left, right);
-      break;
-    case MODE_STRCH:
-      renderStretch(left, right);
-      break;
     case MODE_GATE:
       renderGate(live_left, live_right, left, right);
-      break;
-    case MODE_CRUSH:
-      renderCrushLive(live_left, live_right, left, right);
-      break;
-    case MODE_DLY:
-      renderDelay(live_left, live_right, left, right);
       break;
     default:
       left = live_left;
@@ -932,30 +702,20 @@ private:
 
   float *buf_left_ = nullptr;
   float *buf_right_ = nullptr;
-  float *delay_left_ = nullptr;
-  float *delay_right_ = nullptr;
-
-  Grain grains_[kGrainCount];
 
   float time_norm_ = 0.55f;
   float mix_ = 1.f;
   float decay_norm_ = 0.25f;
-  float crush_norm_ = 0.f;
   float bpm_ = 120.f;
   float wet_ = 0.f;
   float wet_target_ = 0.f;
+  float touch_x_ = 512.f;
+  float touch_y_ = 512.f;
   float play_pos_ = 0.f;
   float play_dir_ = 1.f;
   float repeat_gain_ = 1.f;
-  float tape_rate_ = 1.f;
-  float tape_progress_ = 0.f;
   float gate_phase_ = 0.f;
   float gate_level_ = 0.f;
-  float crush_hold_left_ = 0.f;
-  float crush_hold_right_ = 0.f;
-  float crush_counter_ = 0.f;
-  float stretch_read_ = 0.f;
-  float grain_spawn_ = 0.f;
   float captured_peak_ = 0.f;
 
   uint32_t loop_length_ = 96000U;
@@ -966,11 +726,10 @@ private:
   uint32_t frozen_length_ = 0U;
   uint32_t shuf_origin_ = 0U;
   uint32_t write_pos_ = 0U;
-  uint32_t delay_pos_ = 0U;
   uint32_t captured_samples_ = 0U;
   uint32_t arm_samples_ = 0U;
   uint32_t rng_state_ = 0xA5A5A5A5U;
-  uint8_t mode_ = MODE_RTRG;
+  uint8_t mode_ = MODE_NONE;
   uint8_t sync_ = SYNC_EVEN;
   uint8_t hold_ = HOLD_GATE;
   bool pad_held_ = false;

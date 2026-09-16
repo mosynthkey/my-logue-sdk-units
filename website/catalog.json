@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T20:40:05.909600+00:00",
+  "generatedAt": "2026-09-16T12:45:50.351768+00:00",
   "plugins": [
     {
       "id": "dubthrow",
@@ -59,6 +59,47 @@
           "file": "./units/dubthrow-nts-3_kaoss.nts3unit",
           "size": 8552,
           "wasm": "./sim/dubthrow/nts-3_kaoss/dubthrow.html"
+        }
+      ]
+    },
+    {
+      "id": "glitchpad",
+      "experimental": true,
+      "name": "GlitchPad",
+      "type": "fx",
+      "targets": [
+        "nts-3_kaoss"
+      ],
+      "description": "Glitch\u00b2-style XY pad for NTS-3. Keeps a tempo-synced AUDIO IN buffer (get_raw_input on firmware 1.4+) and locks one of four scenes from the touch start region, like Passort. Top-left = Retrigger. Top-right = Reverse. Bottom-left = Shuffle. Bottom-right = Gate. While held, Y sets slice / rate (bottom = long, top = short). Depth = wet. Untouched = bypass. DECAY fades repeats / gate edges. SYNC: EVEN, TRIP, DOT, FREE. HOLD: GATE or LATCH.",
+      "params": [
+        {
+          "name": "MIX",
+          "role": "Depth",
+          "detail": "Dry/wet while the effect is engaged"
+        },
+        {
+          "name": "DECAY",
+          "role": "Edit",
+          "detail": "Retrigger fade, shuffle fade, and gate edge smoothing"
+        },
+        {
+          "name": "SYNC",
+          "role": "Edit",
+          "detail": "Time grid: EVEN, TRIP, DOT, FREE"
+        },
+        {
+          "name": "HOLD",
+          "role": "Edit",
+          "detail": "GATE = hold to glitch. LATCH = stays after release; switch back to GATE to stop"
+        }
+      ],
+      "builds": [
+        {
+          "target": "nts-3_kaoss",
+          "module": "genericfx",
+          "file": "./units/glitchpad-nts-3_kaoss.nts3unit",
+          "size": 9652,
+          "wasm": "./sim/glitchpad/nts-3_kaoss/glitchpad.html"
         }
       ]
     },
