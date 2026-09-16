@@ -71,24 +71,42 @@ static void fillTone(std::vector<float> &left, std::vector<float> &right, float 
   }
 }
 
-static void setup(GlitchPad &fx, int32_t mode)
+static void setup(GlitchPad &fx)
 {
   fx.setTempo(120.f);
-  fx.setParameter(GlitchPad::MODE, mode);
-  fx.setParameter(GlitchPad::TIME, 563);
   fx.setParameter(GlitchPad::MIX, 1000);
   fx.setParameter(GlitchPad::DECAY, 256);
-  fx.setParameter(GlitchPad::CRUSH, 0);
   fx.setParameter(GlitchPad::SYNC, GlitchPad::SYNC_EVEN);
   fx.setParameter(GlitchPad::HOLD, GlitchPad::HOLD_GATE);
 }
 
-int main()
+static bool expectMode(uint32_t x, uint32_t y, uint8_t expect, const char *label)
 {
   GlitchPad fx;
   std::vector<float> ram(fx.getBufferSize(), 0.f);
   fx.init(ram.data());
-  setup(fx, GlitchPad::MODE_RTRG);
+  setup(fx);
+  fx.touchEvent(0, k_unit_touch_phase_began, x, y);
+  const uint8_t got = fx.currentMode();
+  const bool ok = got == expect;
+  std::printf("region_%s start(%u,%u) mode=%u expect=%u %s\n", label, x, y, got, expect, ok ? "OK" : "FAIL");
+  return ok;
+}
+
+int main()
+{
+  if (!expectMode(128U, 900U, GlitchPad::MODE_RTRG, "tl_rtrg") ||
+      !expectMode(900U, 900U, GlitchPad::MODE_REV, "tr_rev") ||
+      !expectMode(128U, 128U, GlitchPad::MODE_SHUF, "bl_shuf") ||
+      !expectMode(900U, 128U, GlitchPad::MODE_GATE, "br_gate"))
+  {
+    return 1;
+  }
+
+  GlitchPad fx;
+  std::vector<float> ram(fx.getBufferSize(), 0.f);
+  fx.init(ram.data());
+  setup(fx);
 
   const uint32_t bar_frames = 96000U;
   std::vector<float> left(bar_frames, 0.f);
@@ -122,7 +140,13 @@ int main()
     return 11;
   }
 
+  // Top-left = Retrigger; Y=700 keeps a mid/short slice.
   fx.touchEvent(0, k_unit_touch_phase_began, 64U, 700U);
+  if (fx.currentMode() != GlitchPad::MODE_RTRG)
+  {
+    std::printf("top-left should lock Retrigger\n");
+    return 30;
+  }
   std::vector<float> held;
   renderWithInput(fx, silent_left.data(), silent_right.data(), 24000U, held);
   const float loop_rms = windowRms(held, 8000U, 8000U);
@@ -138,20 +162,25 @@ int main()
   std::vector<float> released;
   renderWithInput(fx, silent_left.data(), silent_right.data(), 24000U, released);
   const float release_tail = windowRms(released, 20000U, 3000U);
-  std::printf("release_tail=%.6f active=%d\n", release_tail, fx.isActive() ? 1 : 0);
-  if (release_tail > 0.01f || fx.isActive())
+  std::printf("release_tail=%.6f active=%d mode=%u\n", release_tail, fx.isActive() ? 1 : 0, fx.currentMode());
+  if (release_tail > 0.01f || fx.isActive() || fx.currentMode() != GlitchPad::MODE_NONE)
   {
-    std::printf("GATE release should return to silence when the input is silent\n");
+    std::printf("GATE release should return to silence and clear the locked mode\n");
     return 13;
   }
 
   GlitchPad rev_fx;
   std::vector<float> rev_ram(rev_fx.getBufferSize(), 0.f);
   rev_fx.init(rev_ram.data());
-  setup(rev_fx, GlitchPad::MODE_REV);
+  setup(rev_fx);
   std::vector<float> rev_prime;
   renderWithInput(rev_fx, left.data(), right.data(), bar_frames, rev_prime);
-  rev_fx.touchEvent(0, k_unit_touch_phase_began, 200U, 700U);
+  rev_fx.touchEvent(0, k_unit_touch_phase_began, 900U, 700U);
+  if (rev_fx.currentMode() != GlitchPad::MODE_REV)
+  {
+    std::printf("top-right should lock Reverse\n");
+    return 31;
+  }
   std::vector<float> rev_held;
   renderWithInput(rev_fx, silent_left.data(), silent_right.data(), 24000U, rev_held);
   const float rev_rms = windowRms(rev_held, 8000U, 8000U);
@@ -165,10 +194,15 @@ int main()
   GlitchPad gate_fx;
   std::vector<float> gate_ram(gate_fx.getBufferSize(), 0.f);
   gate_fx.init(gate_ram.data());
-  setup(gate_fx, GlitchPad::MODE_GATE);
-  gate_fx.setParameter(GlitchPad::TIME, 400);
+  setup(gate_fx);
   gate_fx.setParameter(GlitchPad::DECAY, 0);
-  gate_fx.touchEvent(0, k_unit_touch_phase_began, 700U, 400U);
+  // Bottom-right = Gate; Y=400 for a slower chop.
+  gate_fx.touchEvent(0, k_unit_touch_phase_began, 900U, 400U);
+  if (gate_fx.currentMode() != GlitchPad::MODE_GATE)
+  {
+    std::printf("bottom-right should lock Gate\n");
+    return 32;
+  }
   std::vector<float> gated;
   renderWithInput(gate_fx, left.data(), right.data(), 24000U, gated);
   const float gate_high = windowRms(gated, 2000U, 6000U);
@@ -180,26 +214,10 @@ int main()
     return 15;
   }
 
-  GlitchPad crush_fx;
-  std::vector<float> crush_ram(crush_fx.getBufferSize(), 0.f);
-  crush_fx.init(crush_ram.data());
-  setup(crush_fx, GlitchPad::MODE_CRUSH);
-  crush_fx.setParameter(GlitchPad::TIME, 900);
-  crush_fx.touchEvent(0, k_unit_touch_phase_began, 900U, 900U);
-  std::vector<float> crushed;
-  renderWithInput(crush_fx, left.data(), right.data(), 8000U, crushed);
-  const float crush_rms = windowRms(crushed, 2000U, 4000U);
-  std::printf("crush_rms=%.6f\n", crush_rms);
-  if (crush_rms < 0.05f)
-  {
-    std::printf("crush scene should still pass audible audio\n");
-    return 16;
-  }
-
   GlitchPad raw_fx;
   std::vector<float> raw_ram(raw_fx.getBufferSize(), 0.f);
   raw_fx.init(raw_ram.data());
-  setup(raw_fx, GlitchPad::MODE_RTRG);
+  setup(raw_fx);
   std::vector<float> muted_left(bar_frames, 0.f);
   std::vector<float> muted_right(bar_frames, 0.f);
   std::vector<float> raw_left(bar_frames, 0.f);
@@ -229,7 +247,7 @@ int main()
   GlitchPad arm_fx;
   std::vector<float> arm_ram(arm_fx.getBufferSize(), 0.f);
   arm_fx.init(arm_ram.data());
-  setup(arm_fx, GlitchPad::MODE_RTRG);
+  setup(arm_fx);
   std::vector<float> both_muted_left(bar_frames, 0.f);
   std::vector<float> both_muted_right(bar_frames, 0.f);
   std::vector<float> arm_prime;
@@ -259,7 +277,7 @@ int main()
   GlitchPad latch_fx;
   std::vector<float> latch_ram(latch_fx.getBufferSize(), 0.f);
   latch_fx.init(latch_ram.data());
-  setup(latch_fx, GlitchPad::MODE_RTRG);
+  setup(latch_fx);
   latch_fx.setParameter(GlitchPad::HOLD, GlitchPad::HOLD_LATCH);
   std::vector<float> latch_prime;
   renderWithInput(latch_fx, left.data(), right.data(), bar_frames, latch_prime);
@@ -278,51 +296,41 @@ int main()
     return 21;
   }
 
-  static const int32_t kBufferModes[] = {GlitchPad::MODE_SHUF, GlitchPad::MODE_TAPE, GlitchPad::MODE_STRCH};
-  for (uint32_t modeIndex = 0; modeIndex < 3U; ++modeIndex)
+  GlitchPad shuf_fx;
+  std::vector<float> shuf_ram(shuf_fx.getBufferSize(), 0.f);
+  shuf_fx.init(shuf_ram.data());
+  setup(shuf_fx);
+  std::vector<float> shuf_prime;
+  renderWithInput(shuf_fx, left.data(), right.data(), bar_frames, shuf_prime);
+  shuf_fx.touchEvent(0, k_unit_touch_phase_began, 128U, 200U);
+  if (shuf_fx.currentMode() != GlitchPad::MODE_SHUF)
   {
-    const int32_t mode = kBufferModes[modeIndex];
-    GlitchPad mode_fx;
-    std::vector<float> mode_ram(mode_fx.getBufferSize(), 0.f);
-    mode_fx.init(mode_ram.data());
-    setup(mode_fx, mode);
-    std::vector<float> mode_prime;
-    renderWithInput(mode_fx, left.data(), right.data(), bar_frames, mode_prime);
-    mode_fx.touchEvent(0, k_unit_touch_phase_began, 300U, 600U);
-    std::vector<float> mode_held;
-    renderWithInput(mode_fx, silent_left.data(), silent_right.data(), 12000U, mode_held);
-    const float mode_rms = windowRms(mode_held, 2000U, 4000U);
-    std::printf("mode_%d_rms=%.6f\n", mode, mode_rms);
-    if (mode_rms < 0.02f)
-    {
-      std::printf("buffer scene %d should play captured audio\n", mode);
-      return 23;
-    }
+    std::printf("bottom-left should lock Shuffle\n");
+    return 33;
+  }
+  std::vector<float> shuf_held;
+  renderWithInput(shuf_fx, silent_left.data(), silent_right.data(), 12000U, shuf_held);
+  const float shuf_rms = windowRms(shuf_held, 2000U, 4000U);
+  std::printf("shuf_rms=%.6f\n", shuf_rms);
+  if (shuf_rms < 0.02f)
+  {
+    std::printf("shuffle scene should play captured audio\n");
+    return 23;
   }
 
-  GlitchPad delay_fx;
-  std::vector<float> delay_ram(delay_fx.getBufferSize(), 0.f);
-  delay_fx.init(delay_ram.data());
-  setup(delay_fx, GlitchPad::MODE_DLY);
-  delay_fx.setParameter(GlitchPad::TIME, 700);
-  delay_fx.setParameter(GlitchPad::DECAY, 700);
-  delay_fx.touchEvent(0, k_unit_touch_phase_began, 1000U, 700U);
-  std::vector<float> delay_burst(24000U, 0.f);
-  std::vector<float> delay_burst_r(24000U, 0.f);
-  fillTone(delay_burst, delay_burst_r, 440.f, 0.5f);
-  for (uint32_t sampleIndex = 4000U; sampleIndex < delay_burst.size(); ++sampleIndex)
+  // Moving after lock must not change the mode.
+  GlitchPad lock_fx;
+  std::vector<float> lock_ram(lock_fx.getBufferSize(), 0.f);
+  lock_fx.init(lock_ram.data());
+  setup(lock_fx);
+  std::vector<float> lock_prime;
+  renderWithInput(lock_fx, left.data(), right.data(), bar_frames, lock_prime);
+  lock_fx.touchEvent(0, k_unit_touch_phase_began, 100U, 900U);
+  lock_fx.touchEvent(0, k_unit_touch_phase_moved, 900U, 100U);
+  if (lock_fx.currentMode() != GlitchPad::MODE_RTRG)
   {
-    delay_burst[sampleIndex] = 0.f;
-    delay_burst_r[sampleIndex] = 0.f;
-  }
-  std::vector<float> delayed;
-  renderWithInput(delay_fx, delay_burst.data(), delay_burst_r.data(), 24000U, delayed);
-  const float delay_echo = windowRms(delayed, 12000U, 4000U);
-  std::printf("delay_echo=%.6f\n", delay_echo);
-  if (delay_echo < 0.02f)
-  {
-    std::printf("delay scene should keep repeating after the input burst\n");
-    return 24;
+    std::printf("mode must stay locked to the touch start region while dragged\n");
+    return 34;
   }
 
   latch_fx.setParameter(GlitchPad::HOLD, GlitchPad::HOLD_GATE);

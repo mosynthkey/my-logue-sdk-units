@@ -179,12 +179,13 @@ export const dspExplainById = {
   Comb --> Clip[Softclip and DC] --> Out[Out]`,
   },
   glitchpad: {
-    en: "Pad-down glitch FX on a stereo capture buffer. X/mode picks retrigger, reverse, shuffle, tape stop, stretch, gate, crush, or delay; Y sets musical slice length. Pad up bypasses to dry.",
-    ja: "パッド押下でステレオ捕獲バッファ上のグリッチをかけます。モードはリトリガ／逆再生／シャッフル／テープストップ／ストレッチ／ゲート／クラッシュ／ディレイ。離すとバイパスします。",
+    en: "Pad-down glitch FX on a stereo capture buffer. Touch start region locks Retrigger, Reverse, Shuffle, or Gate (Passort-style); Y sets musical slice / rate while held. Pad up bypasses to dry.",
+    ja: "パッド押下でステレオ捕獲バッファ上のグリッチをかけます。タッチ開始位置でリトリガ／逆再生／シャッフル／ゲートをロックし、Yでスライス長。離すとバイパスします。",
     mermaid: `flowchart LR
   In[Live in] --> Buf[Stereo ring buffer]
-  Pad[Pad down] --> Mode[8 glitch modes]
+  Start[Touch start region] --> Mode[4 glitch modes]
   Buf --> Mode
+  Y[Y slice rate] --> Mode
   Mode --> Mix[Dry or wet fade] --> Out[Out]
   In --> Mix`,
   },

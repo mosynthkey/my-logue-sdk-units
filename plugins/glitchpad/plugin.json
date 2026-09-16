@@ -4,13 +4,10 @@
   "name": "GlitchPad",
   "type": "fx",
   "targets": ["nts-3_kaoss"],
-  "description": "Glitch²-style XY pad for NTS-3. Keeps a tempo-synced AUDIO IN buffer (get_raw_input on firmware 1.4+) and plays Illformed-style scenes from the pad. Untouched = bypass. Hold to glitch. X = scene (RTRG, REV, SHUF, TAPE, STRCH, GATE, CRUSH, DLY), Y = slice / rate (1/2 to 1/64), Depth = wet. DECAY fades repeats / tape / delay feedback. CRUSH stacks lo-fi. SYNC: EVEN, TRIP, DOT, FREE. HOLD: GATE or LATCH.",
+  "description": "Glitch²-style XY pad for NTS-3. Keeps a tempo-synced AUDIO IN buffer (get_raw_input on firmware 1.4+) and locks one of four scenes from the touch start region, like Passort. Top-left = Retrigger. Top-right = Reverse. Bottom-left = Shuffle. Bottom-right = Gate. While held, Y sets slice / rate (bottom = long, top = short). Depth = wet. Untouched = bypass. DECAY fades repeats / gate edges. SYNC: EVEN, TRIP, DOT, FREE. HOLD: GATE or LATCH.",
   "params": [
-    { "name": "MODE", "role": "X", "detail": "Scene: RTRG retrigger, REV reverse, SHUF shuffle, TAPE tape stop, STRCH granular stretch, GATE trance gate, CRUSH bitcrush, DLY tempo delay" },
-    { "name": "TIME", "role": "Y", "detail": "Slice length / rate. Bottom = long (1/2), top = short (1/64), tempo-synced" },
     { "name": "MIX", "role": "Depth", "detail": "Dry/wet while the effect is engaged" },
-    { "name": "DECAY", "role": "Edit", "detail": "Retrigger fade, tape-stop length, gate smoothing, delay feedback" },
-    { "name": "CRUSH", "role": "Edit", "detail": "Extra bitcrush / sample-rate reduction stacked on the wet path" },
+    { "name": "DECAY", "role": "Edit", "detail": "Retrigger fade, shuffle fade, and gate edge smoothing" },
     { "name": "SYNC", "role": "Edit", "detail": "Time grid: EVEN, TRIP, DOT, FREE" },
     { "name": "HOLD", "role": "Edit", "detail": "GATE = hold to glitch. LATCH = stays after release; switch back to GATE to stop" }
   ]
