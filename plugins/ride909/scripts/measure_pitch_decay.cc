@@ -23,6 +23,8 @@ TailMetrics measureTail(Ride909 &ride, int32_t pitch_value, uint32_t sample_rate
   ride.setParameter(Ride909::MIX, 1000);
   ride.setParameter(Ride909::PUMP, 0);
   ride.setParameter(Ride909::PITCH, pitch_value);
+  ride.setParameter(Ride909::TONE, 512);
+  ride.setParameter(Ride909::DEC, 1023);
   // Slow enough that the 4-step cycle does not retrigger during one ROM playthrough.
   ride.setTempo(21.f);
   ride.touchEvent(0, k_unit_touch_phase_began, 512, 0);
@@ -104,7 +106,7 @@ int main()
 {
   constexpr uint32_t kSampleRate = 48000U;
   const int32_t pitch_values[] = {512, 768, 1023};
-  const char *pitch_labels[] = {"0 st", "+6 st", "+12 st"};
+  const char *pitch_labels[] = {"0 st", "+3.9 st", "+7.8 st"};
   TailMetrics metrics[3];
 
   std::printf("Ride909 tail energy by tune\n");
@@ -117,10 +119,10 @@ int main()
                 metrics[pitchIndex].peak);
   }
 
-  // Variable-rate Tune shortens the hit. +12 st should be close to half duration.
+  // Variable-rate Tune shortens the hit. +7.8 st ≈ 1/1.57 duration.
   if (metrics[2].decay_40db_sec <= 0.f || metrics[0].decay_40db_sec <= 0.f)
     return 1;
-  if (metrics[2].decay_40db_sec > metrics[0].decay_40db_sec * 0.70f)
+  if (metrics[2].decay_40db_sec > metrics[0].decay_40db_sec * 0.80f)
     return 1;
   if (metrics[2].peak < 0.02f)
     return 1;

@@ -47,7 +47,7 @@ The 6-bit codes are not a fully flattened/companded brick: RMS still falls about
 
 There is no crystal. A 4011UB NAND astable (9090: R478=6.8k, R477=10k, C168=470pF, VR30=10kB Tune) runs around 60 kHz and a 4013 divides it by two. That clock is the ROM sample rate.
 
-This unit uses **30 kHz at Tune center**, which is the figure given in service discussions (60 kHz osc / 2) and is close to Colin Fraser's 32 kHz working rate. X maps ±12 semitones by changing that clock: 15 kHz … 60 kHz. Playback is **zero-order hold** — the current 6-bit code is held until the next ROM clock. There is no interpolating pitch shifter. Because the address counter *is* the envelope DAC, faster Tune also shortens the decay. That is the 909 Ride Tune behaviour.
+This unit uses **30 kHz at Tune center**, which is the figure given in service discussions (60 kHz osc / 2) and is close to Colin Fraser's 32 kHz working rate. The hardware Tune pot (VR30=10kB in series with R478=6.8k) spans an R ratio of `16.8/6.8 ≈ 2.47`, i.e. **≈15.66 semitones total** (~±7.8 st around the geometric center). X maps that span by changing the ROM clock: about **18.3 kHz … 49.1 kHz**. Playback is **zero-order hold** — the current 6-bit code is held until the next ROM clock. There is no interpolating pitch shifter. Because the address counter *is* the envelope DAC, faster Tune also shortens the decay. That is the 909 Ride Tune behaviour.
 
 ### DAC
 
@@ -76,6 +76,17 @@ After the DAC, 9090 Ride has transistor/TL072 stages with
 
 Exact transistor topology is more than a single RC, but those are the time constants on the board. The DSP keeps the two poles that sit inside the 48 kHz Nyquist band (5.9 kHz and 23.7 kHz) as analog-style one-pole LPFs with **fixed Hz**, independent of Tune. A 30 Hz DC block sits on the mix. Images from the variable-rate ZOH are therefore filtered in the analog domain, which is why Tune does not sound like a modern sampler.
 
+## Extra Edit parameters
+
+Hardware Ride only has **Tune** and **Level**. This unit keeps those as X (PITCH) and Depth (MIX), plus Y (PUMP) for the techno sidechain layer.
+
+Two Edit knobs extend the voice the same way sibling PCM units (HHat) and Roland Cloud’s Ride do:
+
+| Param | Role | Behaviour |
+| --- | --- | --- |
+| TONE | Reconstruction LPF tilt | Moves the first ~5.9 kHz pole darker ↔ brighter (HHat-style). Second pole stays fixed. |
+| DEC | Soft VCA choke | Age-based `exp(-age/τ)` on top of the address envelope. Max = full ROM envelope (hardware). Lower shortens the audible body without time-stretching the sample. |
+
 ## What this unit does not do
 
 - It does not interpolate, granulate, or time-stretch. Previous Ride909 versions did, so that decay stayed constant while X changed pitch. That is gone on purpose.
@@ -85,7 +96,7 @@ Exact transistor topology is more than a single RC, but those are the time const
 
 ## Regenerating the PCM header
 
-The packed 6-bit array is `plugins/ride909/dsp/ride909_pcm.h` (~24.6 KB). Together with the analog voice the stripped NTS-3 unit is 31872 bytes (896 under the 32 KB genericfx cap). `powf`/`expf` are avoided so libm is not linked: Tune uses a 4th-order `2^x` on [-1, 1], filter coeffs are baked for 48 kHz, and the anti-log VCA is a 64-point LUT of `exp(-2.8 * code/63)`.
+The packed 6-bit array is `plugins/ride909/dsp/ride909_pcm.h` (~24.6 KB). Together with the analog voice the NTS-3 unit fits under the 32 KB genericfx cap (~31.0 KB text+data). `powf`/`expf` are avoided so libm is not linked: Tune uses a 4th-order `2^x` on [-1, 1], filter coeffs are baked for 48 kHz, and the anti-log VCA is a 64-point LUT of `exp(-2.8 * code/63)`.
 
 To rebuild the PCM header from a 32 KB dump or Intel HEX:
 
@@ -96,6 +107,20 @@ python3 plugins/ride909/scripts/embed_rom.py \
 ```
 
 The script refuses images that are not 6-bit left-aligned. CRC/SHA1 of the source ROM are written into the header comment.
+
+## Host-side verification
+
+```bash
+INC="-I plugins/ride909/dsp -I plugins/common \
+  -I third_party/logue-sdk/platform/nts-3_kaoss/common \
+  -I third_party/logue-sdk/platform/nts-3_kaoss \
+  -I third_party/logue-sdk/platform/ext/CMSIS/CMSIS/Include"
+
+g++ -O2 -std=c++11 $INC plugins/ride909/scripts/measure_params.cc -o /tmp/ride909_params -lm
+/tmp/ride909_params
+```
+
+`measure_params` checks: Tune span ≈ ±7.8 st, TONE brightens the first LPF pole, and DEC shortens the late tail.
 
 ## Sources
 

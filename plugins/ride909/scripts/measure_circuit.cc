@@ -23,6 +23,8 @@ static void render_one_hit(Ride909 &ride, int32_t pitch, std::vector<float> &mon
   ride.setParameter(Ride909::MIX, 1000);
   ride.setParameter(Ride909::PUMP, 0);
   ride.setParameter(Ride909::PITCH, pitch);
+  ride.setParameter(Ride909::TONE, 512);
+  ride.setParameter(Ride909::DEC, 1023);
   ride.setTempo(21.f);
   ride.touchEvent(0, k_unit_touch_phase_began, 512, 0);
   // Relative 4-step cycle: 1=pump, 2=rest, 3=ride.
@@ -98,8 +100,8 @@ int main()
 
   if (center_peak < 0.02f || up_peak < 0.02f)
     return 1;
-  // +12 st is 2x ROM clock, so the hit should be about half as long.
-  if (length_ratio > 0.70f || length_ratio < 0.35f)
+  // Hardware max Tune is ≈ +7.8 st (≈1.57x ROM clock), so the hit is ~0.64x as long.
+  if (length_ratio > 0.80f || length_ratio < 0.45f)
     return 1;
   return 0;
 }
