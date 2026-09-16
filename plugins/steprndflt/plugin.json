@@ -41,7 +41,7 @@
     {
       "name": "SLEW",
       "role": "Edit",
-      "detail": "How quickly cutoff (and Var SVF-type) glide to each new random value"
+      "detail": "How quickly cutoff slews, and how long Var SVF-type linearly ramps between steps"
     },
     {
       "name": "LEVEL",
