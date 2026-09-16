@@ -11,17 +11,21 @@
  * X is 909 Tune: analog clock rate through the Ride ROM, zero-order hold,
  * no interpolation. Decay shortens as pitch rises, matching the hardware.
  * Y is kick sidechain amount. Depth (MIX) is wet level only; dry input always passes.
+ * Edit TONE tilts the first reconstruction pole. Edit DEC adds a soft VCA
+ * choke (Roland Cloud–style RC Decay); max = full address envelope (hardware).
  *
  * Voice path follows the 9090 Ride section of the TR-909 voicing board:
  *   variable clock -> 4040/4520 address -> 6-bit ROM -> resistor DAC
  *   -> address-derived anti-log VCA -> analog reconstruction LPFs
  */
 
-#include "processor.h"
+#include "fx_dsp.h"
 #include "macros.h"
+#include "processor.h"
 #include "ride909_pcm.h"
 #include "runtime.h"
 #include "tr909_pcm.h"
+#include "utils/float_math.h"
 #include <stdint.h>
 
 static const float kRide909EnvLut[64] = {
@@ -48,7 +52,9 @@ class Ride909 : public Processor
 public:
   static constexpr uint32_t kVoiceCount = 4U;
   static constexpr uint32_t kStepsPerCycle = 4U;
-  static constexpr float kPitchRangeSemitones = 12.f;
+  // 9090 Ride clock: R478=6.8k + VR30=0..10kB → R ratio 16.8/6.8 ≈ 15.66 st
+  // total ≈ ±7.8 st around the geometric center (30 kHz ROM clock).
+  static constexpr float kPitchRangeSemitones = 7.8f;
   static constexpr float kMaxPumpDepth = 0.92f;
   static constexpr float kPumpHoldFraction = 0.22f;
   static constexpr float kPumpReleaseSixteenths = 2.25f;
@@ -64,6 +70,8 @@ public:
     PITCH = 0U,
     PUMP,
     MIX,
+    TONE,
+    DEC,
     NUM_PARAMS
   };
 
@@ -79,11 +87,13 @@ public:
       pump_amount_ = param_10bit_to_f32(value);
       break;
     case MIX:
-      mix_ = value / 1000.f;
-      if (mix_ < 0.f)
-        mix_ = 0.f;
-      if (mix_ > 1.f)
-        mix_ = 1.f;
+      mix_ = fx::clip01(value / 1000.f);
+      break;
+    case TONE:
+      tone_norm_ = param_10bit_to_f32(value);
+      break;
+    case DEC:
+      decay_norm_ = param_10bit_to_f32(value);
       break;
     default:
       break;
@@ -105,6 +115,8 @@ public:
     pump_hold_samples_ = 0U;
     pump_gain_ = 1.f;
     mix_ = 1.f;
+    tone_norm_ = 0.5f;
+    decay_norm_ = 1.f;
     bpm_ = 120.f;
     running_ = false;
     use_host_clock_ = false;
@@ -167,6 +179,11 @@ public:
 
   void process(const float *__restrict in, float *__restrict out, uint32_t frames) override final
   {
+    const float inv_sr = 1.f / getSampleRate();
+    // TONE tilts the first reconstruction pole (darker ↔ brighter).
+    const float lpf_a_coeff = fx::clip(kLpfACoeff - 0.18f + tone_norm_ * 0.36f, 0.28f, 0.82f);
+    const float decay_tau = decayTauSeconds();
+
     for (uint32_t sampleIndex = 0; sampleIndex < frames; ++sampleIndex)
     {
       samples_since_tick_ += 1.f;
@@ -174,7 +191,7 @@ public:
         advanceInternalClockOneSample();
       advancePumpEnvelope();
       const float shaped_pump = pump_gain_ * (1.f - pump_amount_ * 0.35f + pump_amount_ * 0.35f * pump_gain_);
-      const float wet = renderVoices() * mix_ * shaped_pump;
+      const float wet = renderVoices(lpf_a_coeff, inv_sr, decay_tau) * mix_ * shaped_pump;
       out[0] = in[0] + wet;
       out[1] = in[1] + wet;
       in += 2;
@@ -184,6 +201,12 @@ public:
 
   uint32_t debugNextStep() const { return next_step_; }
   bool debugHaveSeenTick() const { return have_seen_tick_; }
+  float debugClockRatio() const { return clock_ratio_; }
+  float debugDecayTauSeconds() const { return decayTauSeconds(); }
+  float debugLpfACoeff() const
+  {
+    return fx::clip(kLpfACoeff - 0.18f + tone_norm_ * 0.36f, 0.28f, 0.82f);
+  }
 
 private:
   struct Voice
@@ -191,6 +214,7 @@ private:
     bool active = false;
     float rom_phase = 0.f;
     float phase_inc = 0.f;
+    float age = 0.f;
     float lpf_a = 0.f;
     float lpf_b = 0.f;
   };
@@ -200,6 +224,12 @@ private:
     if (bpm_ <= 0.f)
       return 0.f;
     return getSampleRate() * 60.f / (bpm_ * 4.f);
+  }
+
+  // DEC=1 → effectively off (full address envelope). DEC=0 → ~60 ms choke.
+  float decayTauSeconds() const
+  {
+    return 0.060f + decay_norm_ * decay_norm_ * 2.4f;
   }
 
   static uint8_t readPcm6(uint32_t sample_index)
@@ -326,11 +356,12 @@ private:
     voice.active = true;
     voice.rom_phase = 0.f;
     voice.phase_inc = kRomPhaseInc * clock_ratio_;
+    voice.age = 0.f;
     voice.lpf_a = 0.f;
     voice.lpf_b = 0.f;
   }
 
-  float renderVoice(Voice &voice)
+  float renderVoice(Voice &voice, float lpf_a_coeff, float inv_sr, float decay_tau)
   {
     const uint32_t sample_index = static_cast<uint32_t>(voice.rom_phase);
     if (sample_index >= kRide909PcmLength)
@@ -341,19 +372,23 @@ private:
 
     const float dac = tr909::dacFromCode(readPcm6(sample_index));
     const float env = kRide909EnvLut[sample_index >> 9];
-    const float vca = dac * env * kVoiceGain;
+    // Age-based choke on top of the address envelope (DEC). At max DEC the
+    // tau is long vs the ROM, so this stays near 1 for the whole hit.
+    const float choke = fasterexpf(-voice.age / decay_tau);
+    const float vca = dac * env * choke * kVoiceGain;
 
-    voice.lpf_a += kLpfACoeff * (vca - voice.lpf_a);
+    voice.lpf_a += lpf_a_coeff * (vca - voice.lpf_a);
     voice.lpf_b += kLpfBCoeff * (voice.lpf_a - voice.lpf_b);
 
     voice.rom_phase += voice.phase_inc;
+    voice.age += inv_sr;
     if (voice.rom_phase >= static_cast<float>(kRide909PcmLength))
       voice.active = false;
 
     return voice.lpf_b;
   }
 
-  float renderVoices()
+  float renderVoices(float lpf_a_coeff, float inv_sr, float decay_tau)
   {
     float sum = 0.f;
 
@@ -363,7 +398,7 @@ private:
       if (!voice.active)
         continue;
 
-      sum += renderVoice(voice);
+      sum += renderVoice(voice, lpf_a_coeff, inv_sr, decay_tau);
     }
 
     return tr909::dcBlock(sum, dc_prev_in_, dc_prev_out_);
@@ -381,6 +416,8 @@ private:
   float pump_gain_ = 1.f;
   uint32_t pump_hold_samples_ = 0U;
   float mix_ = 1.f;
+  float tone_norm_ = 0.5f;
+  float decay_norm_ = 1.f;
   float bpm_ = 120.f;
   float samples_since_tick_ = 0.f;
   bool running_ = false;
