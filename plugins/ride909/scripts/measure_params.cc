@@ -155,6 +155,55 @@ int main()
       return 11;
   }
 
+  {
+    Ride909 unity;
+    Ride909 boosted;
+    std::vector<float> unity_mono;
+    std::vector<float> boost_mono;
+    render_one_hit(unity, 512, 512, 1023, unity_mono);
+    boosted.init(nullptr);
+    boosted.setParameter(Ride909::MIX, 1000);
+    boosted.setParameter(Ride909::PUMP, 0);
+    boosted.setParameter(Ride909::PITCH, 512);
+    boosted.setParameter(Ride909::TONE, 512);
+    boosted.setParameter(Ride909::DEC, 1023);
+    boosted.setParameter(Ride909::GAIN, 1023);
+    boosted.setTempo(21.f);
+    boosted.touchEvent(0, k_unit_touch_phase_began, 512, 0);
+    boosted.tempo4ppqnTick(1U);
+    boosted.tempo4ppqnTick(2U);
+    boosted.tempo4ppqnTick(3U);
+    constexpr uint32_t kBlockSize = 128U;
+    constexpr uint32_t kBlockCount = 500U;
+    std::vector<float> block(kBlockSize * 2U, 0.f);
+    boost_mono.assign(kBlockSize * kBlockCount, 0.f);
+    for (uint32_t blockIndex = 0; blockIndex < kBlockCount; ++blockIndex)
+    {
+      std::fill(block.begin(), block.end(), 0.f);
+      boosted.process(block.data(), block.data(), kBlockSize);
+      for (uint32_t sampleIndex = 0; sampleIndex < kBlockSize; ++sampleIndex)
+        boost_mono[blockIndex * kBlockSize + sampleIndex] = block[sampleIndex * 2U];
+    }
+    const float unity_peak = peak_of(unity_mono);
+    const float boost_peak = peak_of(boost_mono);
+    std::printf("gain unity_peak=%.4f boost_peak=%.4f gain_mul=%.3f\n", unity_peak, boost_peak,
+                boosted.debugGainMul());
+    if (std::fabs(boosted.debugGainMul() - 4.f) > 0.05f)
+      return 12;
+    if (!(boost_peak > unity_peak * 1.6f))
+      return 13;
+  }
+
+  {
+    Ride909 pump;
+    pump.init(nullptr);
+    pump.setParameter(Ride909::PUMP, 1023);
+    const float floor = pump.debugPumpFloor();
+    std::printf("pump_floor_at_max=%.4f\n", floor);
+    if (floor > 0.03f)
+      return 14;
+  }
+
   std::printf("ride909_params_ok=1\n");
   return 0;
 }

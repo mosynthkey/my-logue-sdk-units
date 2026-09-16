@@ -96,6 +96,9 @@ Two Edit knobs extend the voice the same way sibling PCM units (HHat) and Roland
 | --- | --- | --- |
 | TONE | Reconstruction LPF tilt | Moves the first ~5.9 kHz pole darker ↔ brighter (HHat-style). Second pole stays fixed. |
 | DEC | Soft VCA choke | Age-based `exp(-age/τ)` on top of the address envelope. Max = full ROM envelope (hardware). Lower shortens the audible body without time-stretching the sample. |
+| GAIN | Ride boost | 0 = unity, max ≈ +12 dB (×4) on top of MIX. Soft-clips only when boosted so default character stays clean. |
+
+PUMP (Y) at max ducks nearly to silence (`kMaxPumpDepth ≈ 0.985`) with a longer hold and a `g²` shape term so the sidechain is obvious on the pad.
 
 ## What this unit does not do
 

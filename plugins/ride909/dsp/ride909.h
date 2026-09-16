@@ -14,6 +14,7 @@
  * Y is kick sidechain amount. Depth (MIX) is wet level only; dry input always passes.
  * Edit TONE tilts the first reconstruction pole. Edit DEC adds a soft VCA
  * choke (Roland Cloud–style RC Decay); max = full address envelope (hardware).
+ * Edit GAIN boosts the ride above unity (MIX already covers attenuation).
  *
  * Voice path follows the 9090 Ride section of the TR-909 voicing board:
  *   variable clock -> 4040/4520 address -> 6-bit ROM -> resistor DAC
@@ -63,9 +64,12 @@ public:
   static constexpr float kTuneRMidOhms = kTuneRFixedOhms + 0.5f * kTuneRPotOhms;
   static constexpr float kPitchLowSemitones = -6.12f;
   static constexpr float kPitchHighSemitones = 9.54f;
-  static constexpr float kMaxPumpDepth = 0.92f;
-  static constexpr float kPumpHoldFraction = 0.22f;
-  static constexpr float kPumpReleaseSixteenths = 2.25f;
+  static constexpr float kMaxPumpDepth = 0.985f;
+  static constexpr float kPumpHoldFraction = 0.32f;
+  static constexpr float kPumpReleaseSixteenths = 2.6f;
+  static constexpr float kPumpShapeAmount = 0.55f;
+  // GAIN Edit: 0 = unity, max ≈ +12 dB (×4) on top of MIX.
+  static constexpr float kGainBoostMax = 3.f;
   static constexpr float kVoiceGain = 0.42f;
   static constexpr float kRomPhaseInc = tr909::kRomPhaseInc;
   static constexpr float kLpfACoeff = tr909::kLpfACoeff;
@@ -80,6 +84,7 @@ public:
     MIX,
     TONE,
     DEC,
+    GAIN,
     NUM_PARAMS
   };
 
@@ -103,6 +108,10 @@ public:
     case DEC:
       decay_norm_ = param_10bit_to_f32(value);
       break;
+    case GAIN:
+      // 1 … 4 (0 dB … ≈ +12 dB). MIX remains the attenuator.
+      gain_mul_ = 1.f + param_10bit_to_f32(value) * kGainBoostMax;
+      break;
     default:
       break;
     }
@@ -125,6 +134,7 @@ public:
     mix_ = 1.f;
     tone_norm_ = 0.5f;
     decay_norm_ = 1.f;
+    gain_mul_ = 1.f;
     bpm_ = 120.f;
     running_ = false;
     use_host_clock_ = false;
@@ -198,8 +208,13 @@ public:
       if (!use_host_clock_)
         advanceInternalClockOneSample();
       advancePumpEnvelope();
-      const float shaped_pump = pump_gain_ * (1.f - pump_amount_ * 0.35f + pump_amount_ * 0.35f * pump_gain_);
-      const float wet = renderVoices(lpf_a_coeff, inv_sr, decay_tau) * mix_ * shaped_pump;
+      const float a = pump_amount_;
+      const float g = pump_gain_;
+      // Extra g*g term deepens the duck at high PUMP so max is obvious.
+      const float shaped_pump = g * (1.f - a * kPumpShapeAmount + a * kPumpShapeAmount * g * g);
+      float wet = renderVoices(lpf_a_coeff, inv_sr, decay_tau) * mix_ * gain_mul_ * shaped_pump;
+      if (gain_mul_ > 1.01f)
+        wet = fx::softclip(wet);
       out[0] = in[0] + wet;
       out[1] = in[1] + wet;
       in += 2;
@@ -211,6 +226,8 @@ public:
   bool debugHaveSeenTick() const { return have_seen_tick_; }
   float debugClockRatio() const { return clock_ratio_; }
   float debugDecayTauSeconds() const { return decayTauSeconds(); }
+  float debugGainMul() const { return gain_mul_; }
+  float debugPumpFloor() const { return 1.f - pump_amount_ * kMaxPumpDepth; }
   float debugLpfACoeff() const
   {
     return fx::clip(kLpfACoeff - 0.18f + tone_norm_ * 0.36f, 0.28f, 0.82f);
@@ -432,6 +449,7 @@ private:
   float mix_ = 1.f;
   float tone_norm_ = 0.5f;
   float decay_norm_ = 1.f;
+  float gain_mul_ = 1.f;
   float bpm_ = 120.f;
   float samples_since_tick_ = 0.f;
   bool running_ = false;
