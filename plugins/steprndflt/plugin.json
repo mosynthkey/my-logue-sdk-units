@@ -6,7 +6,7 @@
   "targets": [
     "nts-3_kaoss"
   ],
-  "description": "Tempo-synced sample-and-hold LFO into a multimode resonant TPT SVF on AUDIO IN. Each step redraws a random cutoff offset around CUT. TYPE pairs each mode with a *R variant that also S&H's the filter dry/wet mix each step (slewed with SLEW). X = LFO depth, Y = resonance (capped). LEVEL scales wet into a final softclip. Hold the pad to engage; release returns to dry.",
+  "description": "Tempo-synced sample-and-hold LFO into a multimode resonant TPT SVF on AUDIO IN. Each step redraws a random cutoff offset around CUT. TYPE selects Peak / LP12 / LP24 / BPF / HP12 / HP24 / Var. Var morphs continuously across LPF24→LPF12→BPF→HPF12→HPF24 and redraws that SVF-type position each step (slewed with SLEW). X = LFO depth, Y = resonance (capped). LEVEL scales wet into a final softclip. Hold the pad to engage; release returns to dry.",
   "params": [
     {
       "name": "DEPTH",
@@ -36,12 +36,12 @@
     {
       "name": "TYPE",
       "role": "Edit",
-      "detail": "Filter mode pairs: Peak/PeakR, LP12/LP12R, LP24/LP24R, BPF/BPFR, HP12/HP12R, HP24/HP24R (*R = per-step random filter mix)"
+      "detail": "Filter mode: Peak, LP12, LP24, BPF, HP12, HP24, Var (continuous LPF24→…→HPF24 morph, S&H per step)"
     },
     {
       "name": "SLEW",
       "role": "Edit",
-      "detail": "How quickly cutoff (and *R mix) glide to each new random value"
+      "detail": "How quickly cutoff (and Var SVF-type) glide to each new random value"
     },
     {
       "name": "LEVEL",
