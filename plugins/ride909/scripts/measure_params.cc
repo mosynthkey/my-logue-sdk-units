@@ -59,7 +59,6 @@ static float window_rms(const std::vector<float> &mono, uint32_t start, uint32_t
 
 static float spectral_brightness(const std::vector<float> &mono, uint32_t sample_rate)
 {
-  // Cheap high/low band energy ratio via one-pole HPF residual vs LPF.
   float low = 0.f;
   float high_energy = 0.f;
   float low_energy = 0.f;
@@ -81,7 +80,7 @@ static float spectral_brightness(const std::vector<float> &mono, uint32_t sample
 
 int main()
 {
-  // Pitch extremes must match the hardware R478+VR30 span (±7.8 st).
+  // Pitch extremes must match R478+VR30 around panel mid (−6.12 / +9.54 st).
   {
     Ride909 low;
     Ride909 mid;
@@ -95,17 +94,23 @@ int main()
     const float low_ratio = low.debugClockRatio();
     const float mid_ratio = mid.debugClockRatio();
     const float high_ratio = high.debugClockRatio();
-    const float expected = std::pow(2.f, Ride909::kPitchRangeSemitones / 12.f);
-    std::printf("pitch_ratio low=%.4f mid=%.4f high=%.4f expected_high=%.4f\n", low_ratio, mid_ratio,
-                high_ratio, expected);
+    const float expected_low = Ride909::kTuneRMidOhms / (Ride909::kTuneRFixedOhms + Ride909::kTuneRPotOhms);
+    const float expected_high = Ride909::kTuneRMidOhms / Ride909::kTuneRFixedOhms;
+    std::printf("pitch_ratio low=%.4f mid=%.4f high=%.4f expected_low=%.4f expected_high=%.4f\n",
+                low_ratio, mid_ratio, high_ratio, expected_low, expected_high);
     if (std::fabs(mid_ratio - 1.f) > 0.02f)
       return 1;
-    if (std::fabs(high_ratio - expected) > 0.05f)
+    if (std::fabs(low_ratio - expected_low) > 0.02f)
       return 2;
-    if (std::fabs(low_ratio * high_ratio - 1.f) > 0.05f)
+    if (std::fabs(high_ratio - expected_high) > 0.05f)
       return 3;
-    if (Ride909::kPitchRangeSemitones < 7.5f || Ride909::kPitchRangeSemitones > 8.2f)
+    // Low end must stay near −6.1 st, not the old symmetric −7.8.
+    const float low_st = 12.f * std::log2(low_ratio);
+    if (low_st < -6.5f || low_st > -5.7f)
       return 4;
+    const float high_st = 12.f * std::log2(high_ratio);
+    if (high_st < 9.2f || high_st > 9.8f)
+      return 5;
   }
 
   std::vector<float> dark_mono;
@@ -123,9 +128,9 @@ int main()
     std::printf("tone dark_ratio=%.4f bright_ratio=%.4f dark_lpf=%.3f bright_lpf=%.3f\n", dark_bright,
                 bright_bright, dark.debugLpfACoeff(), bright.debugLpfACoeff());
     if (!(bright.debugLpfACoeff() > dark.debugLpfACoeff() + 0.15f))
-      return 5;
-    if (!(bright_bright > dark_bright * 1.05f))
       return 6;
+    if (!(bright_bright > dark_bright * 1.05f))
+      return 7;
   }
 
   {
@@ -141,13 +146,13 @@ int main()
                 full_late, short_late, full_peak, short_peak, full_dec.debugDecayTauSeconds(),
                 short_dec.debugDecayTauSeconds());
     if (full_peak < 0.02f || short_peak < 0.01f)
-      return 7;
-    if (!(short_late < full_late * 0.35f))
       return 8;
-    if (!(short_dec.debugDecayTauSeconds() < 0.1f))
+    if (!(short_late < full_late * 0.35f))
       return 9;
-    if (!(full_dec.debugDecayTauSeconds() > 1.5f))
+    if (!(short_dec.debugDecayTauSeconds() < 0.1f))
       return 10;
+    if (!(full_dec.debugDecayTauSeconds() > 1.5f))
+      return 11;
   }
 
   std::printf("ride909_params_ok=1\n");
