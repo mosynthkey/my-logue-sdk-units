@@ -56,6 +56,15 @@
     return jsUrl.slice(0, jsUrl.lastIndexOf("/") + 1);
   }
 
+  // Same token for .js / .wasm / .aw.js — busting only the glue JS after a Pages
+  // deploy leaves a cached .wasm paired with new ASM_CONSTS keys (Safari:
+  // "ASM_CONSTS[code] is not a function").
+  function withCacheToken(url, cacheToken) {
+    const resolved = new URL(url, window.location.href);
+    resolved.searchParams.set("v", cacheToken);
+    return resolved.href;
+  }
+
   function isEmscriptenControlFlow(error) {
     return error === "unwind" || error?.message === "unwind";
   }
@@ -603,25 +612,30 @@
     }
   }
 
-  function installWorkletModuleBase(baseUrl) {
+  function installWorkletModuleBase(baseUrl, cacheToken) {
     const AudioWorkletCtor = window.AudioWorklet;
     if (!AudioWorkletCtor) {
       return;
     }
     const audioWorkletPrototype = AudioWorkletCtor.prototype;
-    if (audioWorkletPrototype.__previewModuleBaseUrl === baseUrl) {
+    const installKey = `${baseUrl}::${cacheToken}`;
+    if (audioWorkletPrototype.__previewModuleBaseUrl === installKey) {
       return;
     }
     if (!originalAddModule) {
       originalAddModule = audioWorkletPrototype.addModule;
     }
     audioWorkletPrototype.addModule = function previewAddModule(moduleURL, options) {
-      if (
-        typeof moduleURL === "string"
-        && !moduleURL.includes("/")
-        && !/^(?:[a-z]+:|blob:|data:)/i.test(moduleURL)
-      ) {
-        moduleURL = new URL(moduleURL, baseUrl).href;
+      if (typeof moduleURL === "string") {
+        if (
+          !moduleURL.includes("/")
+          && !/^(?:[a-z]+:|blob:|data:)/i.test(moduleURL)
+        ) {
+          moduleURL = new URL(moduleURL, baseUrl).href;
+        }
+        if (!moduleURL.startsWith("blob:") && !moduleURL.startsWith("data:")) {
+          moduleURL = withCacheToken(moduleURL, cacheToken);
+        }
       }
       log("info", `AudioWorklet.addModule ${moduleURL}`);
       return originalAddModule.call(this, moduleURL, options).catch((error) => {
@@ -629,7 +643,7 @@
         throw error;
       });
     };
-    audioWorkletPrototype.__previewModuleBaseUrl = baseUrl;
+    audioWorkletPrototype.__previewModuleBaseUrl = installKey;
   }
 
   function loadWasmScript(url) {
@@ -948,11 +962,12 @@
       runtimeReady = false;
       mainStarted = false;
       const baseUrl = wasmBaseUrl(wasmHref);
-      const jsUrl = `${wasmJsUrl(wasmHref)}?v=${Date.now()}`;
+      const cacheToken = String(Date.now());
+      const jsUrl = withCacheToken(wasmJsUrl(wasmHref), cacheToken);
       const audioReady = createAudioWaiter();
 
       const moduleConfig = {
-        locateFile: (path) => new URL(path, baseUrl).href,
+        locateFile: (path) => withCacheToken(new URL(path, baseUrl).href, cacheToken),
         mainScriptUrlOrBlob: jsUrl,
         noInitialRun: deferMain,
         onAudioReady,
@@ -966,9 +981,10 @@
       };
       window.Module = moduleConfig;
       window.setupWebAudioAndUI = onAudioReady;
-      installWorkletModuleBase(baseUrl);
+      installWorkletModuleBase(baseUrl, cacheToken);
       log("info", "Configured wasm module", {
         wasm: wasmHref,
+        cacheToken,
         crossOriginIsolated: window.crossOriginIsolated,
         hasAudioContext: typeof AudioContext !== "undefined" || typeof webkitAudioContext !== "undefined",
         deferMain,

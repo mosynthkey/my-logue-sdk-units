@@ -20,6 +20,7 @@ test:
 	node tests/nts1-midi.test.mjs
 	node tests/preview-kick-demo.test.mjs
 	node tests/preview-dry-input.test.mjs
+	node tests/preview-wasm-cache-bust.test.mjs
 	node tests/plugin-category.test.mjs
 
 website: unit
