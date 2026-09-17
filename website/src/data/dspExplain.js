@@ -534,9 +534,9 @@ export const dspExplainById = {
   LPF --> Mix[Dry or wet] --> Out[Out]
   In --> Mix`,
   },
-  steprndflt: {
-    en: "Tempo-synced sample-and-hold LFO into a multimode resonant TPT SVF on AUDIO IN. Each step redraws a random bipolar offset around CUT; X (DEPTH) scales that swing in octaves, Y is resonance (capped). TYPE selects Peak / LP12 / LP24 / BPF / HP12 / HP24 / Var. Var morphs continuously across LPF24→LPF12→BPF→HPF12→HPF24 and redraws that SVF-type position each step (slewed). Default Peak. LEVEL softclips the wet. Hold the pad to engage.",
-    ja: "AUDIO INへのテンポ同期S&H LFO→マルチモード共振TPT SVFです。各ステップでCUT周りのバイポーラ乱数を引き直し、X（DEPTH）がその振れ幅（オクターブ）、Yがレゾナンス（上限付き）。TYPEはPeak/LP12/LP24/BPF/HP12/HP24/Var。VarはLPF24→LPF12→BPF→HPF12→HPF24の連続モーフィング位置をステップごとにS&H（SLEWで滑らか）。初期Peak。LEVELでウェットを最終ソフトクリップへ。パッド押下中のみ効きます。",
+  stepfilter: {
+    en: "Applies a tempo-synced filter with periodically random Cutoff values. Great for adding movement to long synth-pad chord patterns.",
+    ja: "テンポに同期し、周期的にランダムなCutoff値でフィルターをかけます。シンセパッドを使った長いコードのパターンに動きをつける時などにおすすめです。",
     mermaid: `flowchart LR
   Tempo[BPM clock] --> Grid[Step period]
   Grid --> SH[Cutoff S and H]
