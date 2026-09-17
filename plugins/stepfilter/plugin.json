@@ -5,7 +5,7 @@
   "targets": [
     "nts-3_kaoss"
   ],
-  "description": "Applies a tempo-synced filter with periodically random Cutoff values. Great for adding movement to long synth-pad chord patterns.",
+  "description": "Applies a filter with tempo-synced, periodically random cutoff values. Great for adding movement to long synth-pad chord patterns.",
   "params": [
     {
       "name": "DEPTH",

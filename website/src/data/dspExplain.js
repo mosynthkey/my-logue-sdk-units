@@ -535,7 +535,7 @@ export const dspExplainById = {
   In --> Mix`,
   },
   stepfilter: {
-    en: "Applies a tempo-synced filter with periodically random Cutoff values. Great for adding movement to long synth-pad chord patterns.",
+    en: "Applies a filter with tempo-synced, periodically random cutoff values. Great for adding movement to long synth-pad chord patterns.",
     ja: "テンポに同期し、周期的にランダムなCutoff値でフィルターをかけます。シンセパッドを使った長いコードのパターンに動きをつける時などにおすすめです。",
     mermaid: `flowchart LR
   Tempo[BPM clock] --> Grid[Step period]
