@@ -28,6 +28,7 @@ Plugins:
 - **Ride909** — NTS-3 techno ride wash (off-beats 3-7-11-15, kick pump). Voice is the TR-909 Ride ROM (6-bit PCM) through variable-rate playback, resistor DAC, and analog reconstruction, not a WAV sampler.
 - **Shaker** — PhISEM percussion, `nts-1_mkii` (`osc`, note on = shake) and `nts-3_kaoss` (`genericfx`, pad motion = shake). Instrument constants follow STK Shakers (Cook / Scavone); not a copy of STK source.
 - **airFM** — two-op phase-mod FM, `nts-3_kaoss` (`genericfx`, pad XY = carrier/modulator, touch gate). Inspired by Alesis airSynth Program 3.
+- **StepFilter** — Tempo-synced multimode filter with periodically random Cutoff. Great for adding movement to long synth-pad chord patterns. Targets `nts-3_kaoss`.
 - **AirHorn** — DJ air horn (native ~302 Hz; Key mode concert-tracks from measured root). Pitch envelope recreates the opening drop. NTS-1/mk2: PMODE Fixed|Key. NTS-3: DECAY (127=Sustain), PMODE Fixed|Pitch with continuous PITCH ±2 oct on X. Targets `nts-1_mkii`, `nts-3_kaoss`, and `microkorg2`.
 - **Kaocid** — TB-303 style acid bass with auto phrase generator, `nts-3_kaoss` (`genericfx`, hold pad = tempo-synced 16-step pattern with glides, retouch = new phrase). Panel: Cutoff, Resonance, Wave, Env Mod, Decay, Accent, plus ROOT and Mix. Voice inspired by gsynth TB-303 (Andy Sloane, 2001).
 - **TechnoRumble** — Techno rumble kick processor (`revfx` on mkII, `genericfx` on NTS-3): long reverb tail, sub LPF, drive, and transient-triggered sidechain duck. Feed a kick on AUDIO IN or synth output.
