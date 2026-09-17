@@ -100,8 +100,8 @@ int main()
 
   if (center_peak < 0.02f || up_peak < 0.02f)
     return 1;
-  // Hardware max Tune is ≈ +7.8 st (≈1.57x ROM clock), so the hit is ~0.64x as long.
-  if (length_ratio > 0.80f || length_ratio < 0.45f)
+  // Hardware max Tune is ≈ +9.54 st (≈1.74x ROM clock), so the hit is ~0.58x as long.
+  if (length_ratio > 0.72f || length_ratio < 0.40f)
     return 1;
   return 0;
 }

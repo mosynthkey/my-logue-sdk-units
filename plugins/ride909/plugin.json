@@ -4,12 +4,13 @@
   "name": "Ride909",
   "type": "drum",
   "targets": ["nts-3_kaoss"],
-  "description": "Hold the pad and tap with the kick: the nearest clock becomes step 1, and a 4-step cycle plays the off-beat 909 ride (step 3) with kick sidechain on step 1. Pitch matches the hardware Tune pot (±7.8 st).\nStill being fine-tuned; the official release is coming soon.",
+  "description": "Hold the pad and tap with the kick: the nearest clock becomes step 1, and a 4-step cycle plays the off-beat 909 ride (step 3) with kick sidechain on step 1. Pitch matches the hardware Tune pot (−6.1…+9.5 st).\nStill being fine-tuned; the official release is coming soon.",
   "params": [
-    { "name": "PITCH", "role": "X", "detail": "909 Tune: ROM clock ±7.8 st around 30 kHz (R478+VR30 span); decay tracks pitch" },
-    { "name": "PUMP", "role": "Y", "detail": "Kick sidechain amount (bottom = off, top = deep)" },
-    { "name": "MIX", "role": "Depth", "detail": "Drum level (Audio In always full)" },
+    { "name": "PITCH", "role": "X", "detail": "909 Tune: panel pot via R478+VR30 (≈−6.1…+9.5 st around 30 kHz); decay tracks pitch" },
+    { "name": "PUMP", "role": "Y", "detail": "Kick sidechain amount (bottom = off, top = near-silent duck)" },
+    { "name": "MIX", "role": "Depth", "detail": "Drum level attenuator (Audio In always full)" },
     { "name": "TONE", "role": "Edit", "detail": "Reconstruction LPF tilt (darker ↔ brighter)" },
-    { "name": "DEC", "role": "Edit", "detail": "Soft VCA choke; max = full address envelope (hardware)" }
+    { "name": "DEC", "role": "Edit", "detail": "Soft VCA choke; max = full address envelope (hardware)" },
+    { "name": "GAIN", "role": "Edit", "detail": "Ride boost above unity (0 = 0 dB, max ≈ +12 dB); soft-clips when boosted" }
   ]
 }

@@ -47,7 +47,17 @@ The 6-bit codes are not a fully flattened/companded brick: RMS still falls about
 
 There is no crystal. A 4011UB NAND astable (9090: R478=6.8k, R477=10k, C168=470pF, VR30=10kB Tune) runs around 60 kHz and a 4013 divides it by two. That clock is the ROM sample rate.
 
-This unit uses **30 kHz at Tune center**, which is the figure given in service discussions (60 kHz osc / 2) and is close to Colin Fraser's 32 kHz working rate. The hardware Tune pot (VR30=10kB in series with R478=6.8k) spans an R ratio of `16.8/6.8 ≈ 2.47`, i.e. **≈15.66 semitones total** (~±7.8 st around the geometric center). X maps that span by changing the ROM clock: about **18.3 kHz … 49.1 kHz**. Playback is **zero-order hold** — the current 6-bit code is held until the next ROM clock. There is no interpolating pitch shifter. Because the address counter *is* the envelope DAC, faster Tune also shortens the decay. That is the 909 Ride Tune behaviour.
+This unit uses **30 kHz at Tune center** (panel mid), which is the figure given in service discussions (60 kHz osc / 2) and is close to Colin Fraser's 32 kHz working rate.
+
+9090 Ride clock parts (same on Crash): **C168=470pF**, timing **R = R478 (6.8k) + VR30 (10kB linear)**. **R477=10k is input protection on the 4011UB**, not part of the timing R. So:
+
+| Pot | R | vs panel mid | ROM clock @ 30 kHz mid |
+| --- | --- | --- | --- |
+| CW (min R) | 6.8k | **+9.54 st** | ~52.1 kHz |
+| Mid | 11.8k | 0 | 30 kHz |
+| CCW (max R) | 16.8k | **−6.12 st** | ~21.1 kHz |
+
+A linear B pot is linear in **R**, hence in **1/f**, not in semitones. Mapping X as a symmetric ±octave (or ±7.8 st around the geometric mean) makes the **low end ~1.7 st too low** and the high end ~1.7 st too narrow. This unit maps X through `clock_ratio = R_mid / (R478 + pot)`, matching the panel. Playback is **zero-order hold**. Because the address counter *is* the envelope DAC, faster Tune also shortens the decay.
 
 ### DAC
 
@@ -86,6 +96,9 @@ Two Edit knobs extend the voice the same way sibling PCM units (HHat) and Roland
 | --- | --- | --- |
 | TONE | Reconstruction LPF tilt | Moves the first ~5.9 kHz pole darker ↔ brighter (HHat-style). Second pole stays fixed. |
 | DEC | Soft VCA choke | Age-based `exp(-age/τ)` on top of the address envelope. Max = full ROM envelope (hardware). Lower shortens the audible body without time-stretching the sample. |
+| GAIN | Ride boost | 0 = unity, max ≈ +12 dB (×4) on top of MIX. Soft-clips only when boosted so default character stays clean. |
+
+PUMP (Y) at max ducks nearly to silence (`kMaxPumpDepth ≈ 0.985`) with a longer hold and a `g²` shape term so the sidechain is obvious on the pad.
 
 ## What this unit does not do
 
@@ -120,7 +133,7 @@ g++ -O2 -std=c++11 $INC plugins/ride909/scripts/measure_params.cc -o /tmp/ride90
 /tmp/ride909_params
 ```
 
-`measure_params` checks: Tune span ≈ ±7.8 st, TONE brightens the first LPF pole, and DEC shortens the late tail.
+`measure_params` checks: Tune ratios match R478+VR30 at panel mid (−6.12 / +9.54 st), TONE brightens the first LPF pole, and DEC shortens the late tail.
 
 ## Sources
 

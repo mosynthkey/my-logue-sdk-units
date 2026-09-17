@@ -106,7 +106,7 @@ int main()
 {
   constexpr uint32_t kSampleRate = 48000U;
   const int32_t pitch_values[] = {512, 768, 1023};
-  const char *pitch_labels[] = {"0 st", "+3.9 st", "+7.8 st"};
+  const char *pitch_labels[] = {"0 st", "+~4.5 st", "+9.5 st"};
   TailMetrics metrics[3];
 
   std::printf("Ride909 tail energy by tune\n");
@@ -119,10 +119,10 @@ int main()
                 metrics[pitchIndex].peak);
   }
 
-  // Variable-rate Tune shortens the hit. +7.8 st ≈ 1/1.57 duration.
+  // Variable-rate Tune shortens the hit. +9.5 st ≈ 1/1.74 duration.
   if (metrics[2].decay_40db_sec <= 0.f || metrics[0].decay_40db_sec <= 0.f)
     return 1;
-  if (metrics[2].decay_40db_sec > metrics[0].decay_40db_sec * 0.80f)
+  if (metrics[2].decay_40db_sec > metrics[0].decay_40db_sec * 0.75f)
     return 1;
   if (metrics[2].peak < 0.02f)
     return 1;
