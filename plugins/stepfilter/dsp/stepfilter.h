@@ -1,16 +1,17 @@
 #pragma once
 
 /*
- * File: steprndflt.h
+ * File: stepfilter.h
  *
- * Tempo-synced sample-and-hold LFO into a multimode resonant TPT SVF. Dry by
- * default; touch engages. Each grid period redraws a random bipolar offset
- * around CUT; DEPTH scales that offset in octaves. Y is resonance (capped).
- * TYPE picks Peak / LPF12 / LPF24 / BPF / HPF12 / HPF24 / Variable. Variable
- * morphs continuously across LPF24→LPF12→BPF→HPF12→HPF24 (adjacent taps mixed
- * by fraction) and redraws that internal SVF-type position each step, then
- * linearly ramps to it over SLEW (avoids clicks from abrupt tap changes).
- * LEVEL scales wet before the final softclip.
+ * Tempo-synced filter with periodically random cutoff (S&H LFO into a
+ * multimode resonant TPT SVF). Dry by default; touch engages. Each grid
+ * period redraws a random bipolar offset around CUT; DEPTH scales that
+ * offset in octaves. Y is resonance (capped). TYPE picks Peak / LPF12 /
+ * LPF24 / BPF / HPF12 / HPF24 / Variable. Variable morphs continuously
+ * across LPF24→LPF12→BPF→HPF12→HPF24 (adjacent taps mixed by fraction) and
+ * redraws that internal SVF-type position each step, then linearly ramps to
+ * it over SLEW (avoids clicks from abrupt tap changes). LEVEL scales wet
+ * before the final softclip.
  */
 
 #include "fx_dsp.h"
@@ -20,7 +21,7 @@
 #include "utils/float_math.h"
 #include <stdint.h>
 
-class StepRndFlt : public Processor
+class StepFilter : public Processor
 {
 public:
   static constexpr float kMinFilterCutoffHz = 40.f;

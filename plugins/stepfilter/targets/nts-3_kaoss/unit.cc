@@ -2,7 +2,7 @@
     BSD 3-Clause License
 
     Copyright (c) 2023, KORG INC.
-    Copyright (c) 2026, StepRndFlt contributors
+    Copyright (c) 2026, StepFilter contributors
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -36,16 +36,16 @@
 /*
  * File: unit.cc
  *
- * NTS-3 generic effect unit interface for StepRndFlt
+ * NTS-3 generic effect unit interface for StepFilter
  *
  */
 
-#include "steprndflt.h"
+#include "stepfilter.h"
 #include "unit_genericfx.h"
 #include "utils/int_math.h"
 #include <algorithm>
 
-static StepRndFlt s_steprndflt_instance;
+static StepFilter s_stepfilter_instance;
 static unit_runtime_desc_t s_runtime_desc;
 static unit_runtime_genericfx_get_raw_input_ptr s_get_raw_input = nullptr;
 
@@ -62,13 +62,13 @@ __unit_callback int8_t unit_init(const unit_runtime_desc_t *desc)
   if (!UNIT_API_IS_COMPAT(desc->api))
     return k_unit_err_api_version;
 
-  if (desc->samplerate != s_steprndflt_instance.getSampleRate())
+  if (desc->samplerate != s_stepfilter_instance.getSampleRate())
     return k_unit_err_samplerate;
 
   if (desc->input_channels != 2 || desc->output_channels != 2)
     return k_unit_err_geometry;
 
-  const uint32_t buffer_floats = s_steprndflt_instance.getBufferSize();
+  const uint32_t buffer_floats = s_stepfilter_instance.getBufferSize();
   float *allocated_buffer = nullptr;
   if (buffer_floats > 0U)
   {
@@ -89,36 +89,36 @@ __unit_callback int8_t unit_init(const unit_runtime_desc_t *desc)
         static_cast<const unit_runtime_genericfx_context_t *>(s_runtime_desc.hooks.runtime_context);
     s_get_raw_input = fx_context->get_raw_input;
   }
-  s_steprndflt_instance.init(allocated_buffer);
+  s_stepfilter_instance.init(allocated_buffer);
 
   for (uint8_t paramIndex = 0; paramIndex < UNIT_GENERICFX_MAX_PARAM_COUNT; ++paramIndex)
     cached_values[paramIndex] = static_cast<int32_t>(unit_header.common.params[paramIndex].init);
 
   for (uint8_t paramIndex = 0; paramIndex < unit_header.common.num_params; ++paramIndex)
-    s_steprndflt_instance.setParameter(paramIndex, cached_values[paramIndex]);
+    s_stepfilter_instance.setParameter(paramIndex, cached_values[paramIndex]);
 
   return k_unit_err_none;
 }
 
 __unit_callback void unit_teardown()
 {
-  s_steprndflt_instance.teardown();
+  s_stepfilter_instance.teardown();
   s_get_raw_input = nullptr;
 }
 
 __unit_callback void unit_reset()
 {
-  s_steprndflt_instance.reset();
+  s_stepfilter_instance.reset();
 }
 
 __unit_callback void unit_resume()
 {
-  s_steprndflt_instance.resume();
+  s_stepfilter_instance.resume();
 }
 
 __unit_callback void unit_suspend()
 {
-  s_steprndflt_instance.suspend();
+  s_stepfilter_instance.suspend();
 }
 
 __unit_callback void unit_render(const float *in, float *out, uint32_t frames)
@@ -133,14 +133,14 @@ __unit_callback void unit_render(const float *in, float *out, uint32_t frames)
   }
   if (raw == nullptr && s_get_raw_input != nullptr)
     raw = s_get_raw_input();
-  s_steprndflt_instance.process(in, raw, out, frames);
+  s_stepfilter_instance.process(in, raw, out, frames);
 }
 
 __unit_callback void unit_set_param_value(uint8_t id, int32_t value)
 {
   value = clipminmaxi32(unit_header.common.params[id].min, value, unit_header.common.params[id].max);
   cached_values[id] = value;
-  s_steprndflt_instance.setParameter(id, value);
+  s_stepfilter_instance.setParameter(id, value);
 }
 
 __unit_callback int32_t unit_get_param_value(uint8_t id)
@@ -151,21 +151,21 @@ __unit_callback int32_t unit_get_param_value(uint8_t id)
 __unit_callback const char *unit_get_param_str_value(uint8_t id, int32_t value)
 {
   value = clipminmaxi32(unit_header.common.params[id].min, value, unit_header.common.params[id].max);
-  return s_steprndflt_instance.getParameterStrValue(id, value);
+  return s_stepfilter_instance.getParameterStrValue(id, value);
 }
 
 __unit_callback void unit_touch_event(uint8_t id, uint8_t phase, uint32_t x, uint32_t y)
 {
-  s_steprndflt_instance.touchEvent(id, phase, x, y);
+  s_stepfilter_instance.touchEvent(id, phase, x, y);
 }
 
 __unit_callback void unit_set_tempo(uint32_t tempo)
 {
   float bpm = (tempo >> 16) + (tempo & 0xFFFF) / static_cast<float>(0x10000);
-  s_steprndflt_instance.setTempo(bpm);
+  s_stepfilter_instance.setTempo(bpm);
 }
 
 __unit_callback void unit_tempo_4ppqn_tick(uint32_t counter)
 {
-  s_steprndflt_instance.tempo4ppqnTick(counter);
+  s_stepfilter_instance.tempo4ppqnTick(counter);
 }

@@ -2,7 +2,7 @@
 # Configuration for Makefile
 #
 
-PROJECT := steprndflt
+PROJECT := stepfilter
 PROJECT_TYPE := genericfx
 
 ##############################################################################
