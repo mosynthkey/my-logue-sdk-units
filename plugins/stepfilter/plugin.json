@@ -1,12 +1,11 @@
 {
-  "id": "steprndflt",
-  "experimental": true,
-  "name": "StepRndFlt",
+  "id": "stepfilter",
+  "name": "StepFilter",
   "type": "fx",
   "targets": [
     "nts-3_kaoss"
   ],
-  "description": "Tempo-synced sample-and-hold LFO into a multimode resonant TPT SVF on AUDIO IN. Each step redraws a random cutoff offset around CUT. TYPE selects Peak / LP12 / LP24 / BPF / HP12 / HP24 / Var. Var morphs continuously across LPF24→LPF12→BPF→HPF12→HPF24 and redraws that SVF-type position each step (slewed with SLEW). X = LFO depth, Y = resonance (capped). LEVEL scales wet into a final softclip. Hold the pad to engage; release returns to dry.",
+  "description": "Applies a tempo-synced filter with periodically random Cutoff values. Great for adding movement to long synth-pad chord patterns.",
   "params": [
     {
       "name": "DEPTH",

@@ -2,7 +2,7 @@
     BSD 3-Clause License
 
     Copyright (c) 2023, KORG INC.
-    Copyright (c) 2026, StepRndFlt contributors
+    Copyright (c) 2026, StepFilter contributors
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 /*
  * File: header.c
  *
- * NTS-3 generic effect unit header for StepRndFlt
+ * NTS-3 generic effect unit header for StepFilter
  *
  */
 
@@ -50,8 +50,8 @@ const __unit_header genericfx_unit_header_t unit_header = {
         .api = UNIT_API_VERSION,
         .dev_id = MLSA_DEV_ID,
         .unit_id = 0x0000003BU,
-        .version = MLSA_VERSION_EXPERIMENTAL,
-        .name = "StepRndFlt",
+        .version = MLSA_VERSION_STABLE,
+        .name = "StepFilter",
         .num_params = 8,
         .params = {
             {0, 1023, 0, 563, k_unit_param_type_none, 0, 0, 0, {"DEPTH"}},

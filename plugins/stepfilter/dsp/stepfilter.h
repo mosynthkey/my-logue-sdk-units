@@ -1,7 +1,7 @@
 #pragma once
 
 /*
- * File: steprndflt.h
+ * File: stepfilter.h
  *
  * Tempo-synced sample-and-hold LFO into a multimode resonant TPT SVF. Dry by
  * default; touch engages. Each grid period redraws a random bipolar offset
@@ -20,7 +20,7 @@
 #include "utils/float_math.h"
 #include <stdint.h>
 
-class StepRndFlt : public Processor
+class StepFilter : public Processor
 {
 public:
   static constexpr float kMinFilterCutoffHz = 40.f;
