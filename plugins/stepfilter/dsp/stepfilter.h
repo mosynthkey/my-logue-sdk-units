@@ -27,8 +27,8 @@ public:
   static constexpr float kMaxDepthOctaves = 5.f;
   static constexpr float kMaxResonanceNorm = 0.8f;
   static constexpr float kParamSmoothCoeff = 0.0025f;
-  // Max one-pole time constant when SMOOTH is fully open (~3 s to ~63%).
-  static constexpr float kMaxSmoothSec = 3.f;
+  // Max one-pole time constant when SMOOTH is fully open (~0.5 s to ~63%).
+  static constexpr float kMaxSmoothSec = 0.5f;
   static constexpr uint8_t kNumPeriods = 8U;
   static constexpr uint8_t kNumTypes = 6U;
 
