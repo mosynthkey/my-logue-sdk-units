@@ -63,6 +63,8 @@ Colin Fraser’s 32 kHz dump rate sits between those two.
 
 A linear B pot is linear in **R**, hence in **1/f**, not in semitones. Mapping X as a symmetric ±octave (or ±7.8 st around the geometric mean) makes the **low end ~1.7 st too low** and the high end ~1.7 st too narrow. This unit maps X through `clock_ratio = R_mid / (R478 + pot)`, matching the panel. Playback is **zero-order hold**. Because the address counter *is* the envelope DAC, faster Tune also shortens the decay.
 
+Edit **PITCH** and pad **X** share the same unipolar linear 0…1023 path (no bipolar dead-zone). Changing Tune also updates `phase_inc` on already-active voices, like the hardware clock.
+
 ### DAC
 
 9090 Ride uses a 6-bit binary-weighted ladder:
