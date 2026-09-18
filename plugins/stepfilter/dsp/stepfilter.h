@@ -7,9 +7,9 @@
  * multimode resonant TPT SVF). Dry by default; touch engages. Each grid
  * period redraws a random bipolar offset around CUT; DEPTH scales that
  * offset in octaves. Y is resonance (capped). TYPE picks Peak / LPF12 /
- * LPF24 / BPF / HPF12 / HPF24. SLEW is a one-pole time constant on the
- * cutoff Hz toward each new S&H target (higher = slower). LEVEL scales
- * wet before the final softclip.
+ * LPF24 / BPF / HPF12 / HPF24. SMOOTH glides cutoff Hz toward each new
+ * S&H target (0 = instant step, max = very slow one-pole toward the new
+ * value). LEVEL scales wet before the final softclip.
  */
 
 #include "fx_dsp.h"
@@ -27,8 +27,8 @@ public:
   static constexpr float kMaxDepthOctaves = 5.f;
   static constexpr float kMaxResonanceNorm = 0.8f;
   static constexpr float kParamSmoothCoeff = 0.0025f;
-  static constexpr float kMinSlewSec = 0.001f;
-  static constexpr float kMaxSlewSec = 1.5f;
+  // Max one-pole time constant when SMOOTH is fully open (~3 s to ~63%).
+  static constexpr float kMaxSmoothSec = 3.f;
   static constexpr uint8_t kNumPeriods = 8U;
   static constexpr uint8_t kNumTypes = 6U;
 
@@ -42,7 +42,7 @@ public:
     CUT,
     STEPS,
     TYPE,
-    SLEW,
+    SMOOTH,
     LEVEL,
     NUM_PARAMS
   };
@@ -91,8 +91,8 @@ public:
     case TYPE:
       type_sel_ = static_cast<uint8_t>(fx::clip(static_cast<float>(value), 0.f, static_cast<float>(kNumTypes - 1U)));
       break;
-    case SLEW:
-      slew_norm_ = param_10bit_to_f32(value);
+    case SMOOTH:
+      smooth_norm_ = param_10bit_to_f32(value);
       break;
     case LEVEL:
       level_ = param_10bit_to_f32(value);
@@ -122,7 +122,7 @@ public:
     resonance_norm_smooth_ = 0.45f * kMaxResonanceNorm;
     cutoff_norm_target_ = 0.5f;
     cutoff_norm_smooth_ = 0.5f;
-    slew_norm_ = 0.15f;
+    smooth_norm_ = 0.15f;
     mix_ = 1.f;
     level_ = 1.f;
     period_sel_ = PERIOD_1STEP;
@@ -185,11 +185,13 @@ public:
     const float sr = getSampleRate();
     const float beat = static_cast<float>(fx::samplesPerBeat(bpm_, sr));
     const float period_samples = beat * 0.25f * periodSixteenths(period_sel_);
-    // Quadratic map: low SLEW stays snappy, high SLEW stretches toward kMaxSlewSec.
-    const float slew_sec = kMinSlewSec + slew_norm_ * slew_norm_ * (kMaxSlewSec - kMinSlewSec);
-    // One-pole toward target: y += (t - y) * alpha, alpha ≈ 1/(tau*sr).
-    // Do not use the near-1 feedback coeff here (that would invert SLEW).
-    const float slew_alpha = fx::clip(1.f / (slew_sec * sr), 0.f, 1.f);
+    // SMOOTH 0 = snap; higher = longer one-pole tau (quadratic toward kMaxSmoothSec).
+    float cutoff_alpha = 1.f;
+    if (smooth_norm_ > 0.f)
+    {
+      const float smooth_sec = smooth_norm_ * smooth_norm_ * kMaxSmoothSec;
+      cutoff_alpha = fx::clip(1.f / (smooth_sec * sr), 0.f, 1.f);
+    }
 
     for (uint32_t sampleIndex = 0; sampleIndex < frames; ++sampleIndex)
     {
@@ -220,7 +222,10 @@ public:
       }
 
       const float target_hz = modulatedCutoffHz(cutoff_norm_smooth_, depth_smooth_, hold_bipolar_);
-      cutoff_hz_smooth_ += (target_hz - cutoff_hz_smooth_) * slew_alpha;
+      if (cutoff_alpha >= 1.f)
+        cutoff_hz_smooth_ = target_hz;
+      else
+        cutoff_hz_smooth_ += (target_hz - cutoff_hz_smooth_) * cutoff_alpha;
 
       const float filtered_left =
           processFilter(live_left, cutoff_hz_smooth_, resonance_norm_smooth_, type_sel_, svf_left_a_, svf_left_b_);
@@ -374,7 +379,7 @@ private:
   float resonance_norm_smooth_ = 0.45f * kMaxResonanceNorm;
   float cutoff_norm_target_ = 0.5f;
   float cutoff_norm_smooth_ = 0.5f;
-  float slew_norm_ = 0.15f;
+  float smooth_norm_ = 0.15f;
   float mix_ = 1.f;
   float level_ = 1.f;
   uint32_t rng_ = 0xA5F15237U;
