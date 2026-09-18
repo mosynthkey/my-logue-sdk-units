@@ -572,17 +572,15 @@ export const dspExplainById = {
     mermaid: `flowchart LR
   Tempo[BPM clock] --> Grid[Step period]
   Grid --> SH[Cutoff S and H]
-  Grid --> TypeSH[SVF type S and H on Var]
   SH --> CutMod[Cutoff offset]
   Depth[X depth] --> CutMod
   Cut[CUT center] --> CutMod
   In[Audio in] --> Flt[TPT SVF]
-  CutMod --> Flt
+  CutMod --> Slew[Cutoff one-pole slew]
+  Slew --> Flt
   Res[Y resonance] --> Flt
   Type[TYPE] --> Flt
-  TypeSH --> Morph[LP24 to HP24 morph]
-  Flt --> Morph
-  Morph --> Level[LEVEL]
+  Flt --> Level[LEVEL]
   Level --> Clip[Softclip]
   Clip --> Mix[Dry or wet] --> Out[Out]
   In --> Mix`,
