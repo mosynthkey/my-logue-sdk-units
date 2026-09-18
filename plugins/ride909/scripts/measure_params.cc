@@ -206,50 +206,53 @@ int main()
       return 14;
   }
 
-  // Live Tune: changing PITCH mid-hit must update phase_inc (knob and X share
-  // the same setParameter path once X is unipolar).
+  // One-shot pitch lock: mid-hit PITCH (Touch/Edit/host restore) must not
+  // change an already-playing voice's phase_inc; next trigger uses the new rate.
   {
-    Ride909 live;
-    live.init(nullptr);
-    live.setParameter(Ride909::MIX, 1000);
-    live.setParameter(Ride909::PUMP, 0);
-    live.setParameter(Ride909::PITCH, 512);
-    live.setParameter(Ride909::TONE, 512);
-    live.setParameter(Ride909::DEC, 1023);
-    live.setTempo(21.f);
-    live.touchEvent(0, k_unit_touch_phase_began, 512, 0);
-    live.tempo4ppqnTick(1U);
-    live.tempo4ppqnTick(2U);
-    live.tempo4ppqnTick(3U);
+    Ride909 locked;
+    locked.init(nullptr);
+    locked.setParameter(Ride909::MIX, 1000);
+    locked.setParameter(Ride909::PUMP, 0);
+    locked.setParameter(Ride909::PITCH, 512);
+    locked.setParameter(Ride909::TONE, 512);
+    locked.setParameter(Ride909::DEC, 1023);
+    locked.setTempo(21.f);
+    locked.touchEvent(0, k_unit_touch_phase_began, 512, 0);
+    locked.tempo4ppqnTick(1U);
+    locked.tempo4ppqnTick(2U);
+    locked.tempo4ppqnTick(3U);
     std::vector<float> block(128U * 2U, 0.f);
-    live.process(block.data(), block.data(), 128U);
-    const float mid_inc = live.debugActivePhaseInc();
+    locked.process(block.data(), block.data(), 128U);
+    const float mid_inc = locked.debugActivePhaseInc();
     if (mid_inc <= 0.f)
       return 16;
-    live.setParameter(Ride909::PITCH, 0);
-    const float low_inc = live.debugActivePhaseInc();
-    live.setParameter(Ride909::PITCH, 1023);
-    const float high_inc = live.debugActivePhaseInc();
-    std::printf("live_phase_inc mid=%.6f low=%.6f high=%.6f\n", mid_inc, low_inc, high_inc);
-    if (!(low_inc < mid_inc * 0.8f))
+    locked.setParameter(Ride909::PITCH, 0);
+    const float after_touch_inc = locked.debugActivePhaseInc();
+    locked.setParameter(Ride909::PITCH, 1023);
+    const float after_edit_inc = locked.debugActivePhaseInc();
+    std::printf("oneshot_phase_inc mid=%.6f after_low=%.6f after_high=%.6f clock_high=%.4f\n",
+                mid_inc, after_touch_inc, after_edit_inc, locked.debugClockRatio());
+    if (std::fabs(after_touch_inc - mid_inc) > 1.0e-6f)
       return 17;
-    if (!(high_inc > mid_inc * 1.5f))
+    if (std::fabs(after_edit_inc - mid_inc) > 1.0e-6f)
       return 18;
-    // Same PITCH value → same clock whether set before or after trigger.
-    Ride909 pre;
-    pre.init(nullptr);
-    pre.setParameter(Ride909::PITCH, 256);
-    pre.setParameter(Ride909::MIX, 1000);
-    pre.setTempo(21.f);
-    pre.touchEvent(0, k_unit_touch_phase_began, 256, 0);
-    pre.tempo4ppqnTick(1U);
-    pre.tempo4ppqnTick(2U);
-    pre.tempo4ppqnTick(3U);
-    pre.process(block.data(), block.data(), 128U);
-    live.setParameter(Ride909::PITCH, 256);
-    if (std::fabs(live.debugClockRatio() - pre.debugClockRatio()) > 1.0e-5f)
-      return 19;
-    if (std::fabs(live.debugActivePhaseInc() - pre.debugActivePhaseInc()) > 1.0e-6f)
+    if (!(locked.debugClockRatio() > 1.5f))
+      return 19; // next-trigger clock did update
+    // New trigger after pitch change must pick up the new rate.
+    Ride909 next_hit;
+    next_hit.init(nullptr);
+    next_hit.setParameter(Ride909::MIX, 1000);
+    next_hit.setParameter(Ride909::PITCH, 1023);
+    next_hit.setParameter(Ride909::DEC, 1023);
+    next_hit.setTempo(21.f);
+    next_hit.touchEvent(0, k_unit_touch_phase_began, 1023, 0);
+    next_hit.tempo4ppqnTick(1U);
+    next_hit.tempo4ppqnTick(2U);
+    next_hit.tempo4ppqnTick(3U);
+    next_hit.process(block.data(), block.data(), 128U);
+    const float high_inc = next_hit.debugActivePhaseInc();
+    std::printf("oneshot_next_trigger_inc=%.6f\n", high_inc);
+    if (!(high_inc > mid_inc * 1.5f))
       return 20;
   }
 

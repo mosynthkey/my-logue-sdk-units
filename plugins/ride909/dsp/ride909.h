@@ -96,11 +96,10 @@ public:
     switch (index)
     {
     case PITCH:
+      // Host X/Edit write clock_ratio_ for the *next* trigger. Active one-shots
+      // keep the phase_inc sampled in triggerRide() until they finish.
       pitch_norm_ = (static_cast<float>(value) - 512.f) * (1.f / 512.f);
       updateClockRatio();
-      // Hardware Tune moves the ROM clock live; keep active voices in sync so
-      // Edit knob and X pad sound the same while a hit is playing.
-      updateActiveVoiceRates();
       break;
     case PUMP:
       pump_amount_ = param_10bit_to_f32(value);
@@ -333,17 +332,6 @@ private:
     if (r_ohms > kTuneRFixedOhms + kTuneRPotOhms)
       r_ohms = kTuneRFixedOhms + kTuneRPotOhms;
     clock_ratio_ = kTuneRMidOhms / r_ohms;
-  }
-
-  void updateActiveVoiceRates()
-  {
-    const float phase_inc = kRomPhaseInc * clock_ratio_;
-    for (uint32_t voiceIndex = 0; voiceIndex < kVoiceCount; ++voiceIndex)
-    {
-      Voice &voice = voices_[voiceIndex];
-      if (voice.active)
-        voice.phase_inc = phase_inc;
-    }
   }
 
   void resetVoices()
