@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-16T12:45:50.351768+00:00",
+  "generatedAt": "2026-09-18T00:26:31Z",
   "plugins": [
     {
       "id": "dubthrow",
@@ -63,14 +63,11 @@
       ]
     },
     {
-      "id": "glitchpad",
+      "id": "gater",
       "experimental": true,
-      "name": "GlitchPad",
+      "name": "Gater",
       "type": "fx",
-      "targets": [
-        "nts-3_kaoss"
-      ],
-      "description": "Glitch\u00b2-style XY pad for NTS-3. Keeps a tempo-synced AUDIO IN buffer (get_raw_input on firmware 1.4+) and locks one of four scenes from the touch start region, like Passort. Top-left = Retrigger. Top-right = Reverse. Bottom-left = Shuffle. Bottom-right = Gate. While held, Y sets slice / rate (bottom = long, top = short). Depth = wet. Untouched = bypass. DECAY fades repeats / gate edges. SYNC: EVEN, TRIP, DOT, FREE. HOLD: GATE or LATCH.",
+      "description": "Glitch\u00b2-style trance Gate for NTS-3. Chops live AUDIO IN on a tempo grid while the pad is held (no freeze). Y = gate rate (bottom slow, top fast). Depth = wet. Untouched = bypass. DECAY smooths edges. SYNC: EVEN, TRIP, DOT, FREE. HOLD: GATE or LATCH.",
       "params": [
         {
           "name": "MIX",
@@ -80,7 +77,7 @@
         {
           "name": "DECAY",
           "role": "Edit",
-          "detail": "Retrigger fade, shuffle fade, and gate edge smoothing"
+          "detail": "Gate edge smoothing"
         },
         {
           "name": "SYNC",
@@ -90,16 +87,125 @@
         {
           "name": "HOLD",
           "role": "Edit",
-          "detail": "GATE = hold to glitch. LATCH = stays after release; switch back to GATE to stop"
+          "detail": "GATE = hold to engage. LATCH = stays after release; switch back to GATE to stop"
         }
       ],
       "builds": [
         {
           "target": "nts-3_kaoss",
           "module": "genericfx",
-          "file": "./units/glitchpad-nts-3_kaoss.nts3unit",
-          "size": 9652,
-          "wasm": "./sim/glitchpad/nts-3_kaoss/glitchpad.html"
+          "file": "./units/gater-nts-3_kaoss.nts3unit",
+          "size": 7972,
+          "wasm": "./sim/gater/nts-3_kaoss/gater.html"
+        }
+      ]
+    },
+    {
+      "id": "retrig",
+      "experimental": true,
+      "name": "Retrig",
+      "type": "fx",
+      "description": "Glitch\u00b2-style Retrigger for NTS-3. Continuously captures AUDIO IN (get_raw_input on firmware 1.4+) and freezes a tempo slice on touch, looping it forward with crossfade. Y = slice length (bottom long, top short). Depth = wet. Untouched = bypass. DECAY fades each wrap. SYNC: EVEN, TRIP, DOT, FREE. HOLD: GATE or LATCH.",
+      "params": [
+        {
+          "name": "MIX",
+          "role": "Depth",
+          "detail": "Dry/wet while the effect is engaged"
+        },
+        {
+          "name": "DECAY",
+          "role": "Edit",
+          "detail": "Fade amount applied on each loop wrap"
+        },
+        {
+          "name": "SYNC",
+          "role": "Edit",
+          "detail": "Time grid: EVEN, TRIP, DOT, FREE"
+        },
+        {
+          "name": "HOLD",
+          "role": "Edit",
+          "detail": "GATE = hold to engage. LATCH = stays after release; switch back to GATE to stop"
+        }
+      ],
+      "builds": [
+        {
+          "target": "nts-3_kaoss",
+          "module": "genericfx",
+          "file": "./units/retrig-nts-3_kaoss.nts3unit",
+          "size": 8548,
+          "wasm": "./sim/retrig/nts-3_kaoss/retrig.html"
+        }
+      ]
+    },
+    {
+      "id": "reverse",
+      "experimental": true,
+      "name": "Reverse",
+      "type": "fx",
+      "description": "Glitch\u00b2-style Reverse for NTS-3. Continuously captures AUDIO IN (get_raw_input on firmware 1.4+) and freezes a tempo slice on touch, playing it in ping-pong reverse/forward. Y = slice length (bottom long, top short). Depth = wet. Untouched = bypass. SYNC: EVEN, TRIP, DOT, FREE. HOLD: GATE or LATCH.",
+      "params": [
+        {
+          "name": "MIX",
+          "role": "Depth",
+          "detail": "Dry/wet while the effect is engaged"
+        },
+        {
+          "name": "SYNC",
+          "role": "Edit",
+          "detail": "Time grid: EVEN, TRIP, DOT, FREE"
+        },
+        {
+          "name": "HOLD",
+          "role": "Edit",
+          "detail": "GATE = hold to engage. LATCH = stays after release; switch back to GATE to stop"
+        }
+      ],
+      "builds": [
+        {
+          "target": "nts-3_kaoss",
+          "module": "genericfx",
+          "file": "./units/reverse-nts-3_kaoss.nts3unit",
+          "size": 8312,
+          "wasm": "./sim/reverse/nts-3_kaoss/reverse.html"
+        }
+      ]
+    },
+    {
+      "id": "shuffle",
+      "experimental": true,
+      "name": "Shuffle",
+      "type": "fx",
+      "description": "Glitch\u00b2-style Shuffle for NTS-3. Continuously captures about one bar of AUDIO IN (get_raw_input on firmware 1.4+) and on touch jumps between random sub-slices (sometimes reversed), with occasional repeats that fade. Y = sub-slice length. Depth = wet. Untouched = bypass. DECAY fades repeats. SYNC: EVEN, TRIP, DOT, FREE. HOLD: GATE or LATCH.",
+      "params": [
+        {
+          "name": "MIX",
+          "role": "Depth",
+          "detail": "Dry/wet while the effect is engaged"
+        },
+        {
+          "name": "DECAY",
+          "role": "Edit",
+          "detail": "Fade amount on repeated slices"
+        },
+        {
+          "name": "SYNC",
+          "role": "Edit",
+          "detail": "Time grid: EVEN, TRIP, DOT, FREE"
+        },
+        {
+          "name": "HOLD",
+          "role": "Edit",
+          "detail": "GATE = hold to engage. LATCH = stays after release; switch back to GATE to stop"
+        }
+      ],
+      "builds": [
+        {
+          "target": "nts-3_kaoss",
+          "module": "genericfx",
+          "file": "./units/shuffle-nts-3_kaoss.nts3unit",
+          "size": 8744,
+          "wasm": "./sim/shuffle/nts-3_kaoss/shuffle.html"
         }
       ]
     },

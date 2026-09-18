@@ -1,0 +1,32 @@
+{
+  "id": "shuffle",
+  "experimental": true,
+  "name": "Shuffle",
+  "type": "fx",
+  "targets": [
+    "nts-3_kaoss"
+  ],
+  "description": "Glitch\u00b2-style Shuffle for NTS-3. Continuously captures about one bar of AUDIO IN (get_raw_input on firmware 1.4+) and on touch jumps between random sub-slices (sometimes reversed), with occasional repeats that fade. Y = sub-slice length. Depth = wet. Untouched = bypass. DECAY fades repeats. SYNC: EVEN, TRIP, DOT, FREE. HOLD: GATE or LATCH.",
+  "params": [
+    {
+      "name": "MIX",
+      "role": "Depth",
+      "detail": "Dry/wet while the effect is engaged"
+    },
+    {
+      "name": "DECAY",
+      "role": "Edit",
+      "detail": "Fade amount on repeated slices"
+    },
+    {
+      "name": "SYNC",
+      "role": "Edit",
+      "detail": "Time grid: EVEN, TRIP, DOT, FREE"
+    },
+    {
+      "name": "HOLD",
+      "role": "Edit",
+      "detail": "GATE = hold to engage. LATCH = stays after release; switch back to GATE to stop"
+    }
+  ]
+}

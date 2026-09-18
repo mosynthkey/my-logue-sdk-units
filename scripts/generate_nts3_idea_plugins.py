@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 KAOCID_WASM = ROOT / "plugins/kaocid/targets/nts-3_kaoss/wasm.cc"
-GLITCH_MAKE = ROOT / "plugins/glitchpad/targets/nts-3_kaoss/Makefile"
+GLITCH_MAKE = ROOT / "plugins/retrig/targets/nts-3_kaoss/Makefile"
 
 # Param tuple: name, min, max, init, type, frac, frac_mode
 # type: none | percent | strings | midi_note

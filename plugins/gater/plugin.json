@@ -1,0 +1,32 @@
+{
+  "id": "gater",
+  "experimental": true,
+  "name": "Gater",
+  "type": "fx",
+  "targets": [
+    "nts-3_kaoss"
+  ],
+  "description": "Glitch\u00b2-style trance Gate for NTS-3. Chops live AUDIO IN on a tempo grid while the pad is held (no freeze). Y = gate rate (bottom slow, top fast). Depth = wet. Untouched = bypass. DECAY smooths edges. SYNC: EVEN, TRIP, DOT, FREE. HOLD: GATE or LATCH.",
+  "params": [
+    {
+      "name": "MIX",
+      "role": "Depth",
+      "detail": "Dry/wet while the effect is engaged"
+    },
+    {
+      "name": "DECAY",
+      "role": "Edit",
+      "detail": "Gate edge smoothing"
+    },
+    {
+      "name": "SYNC",
+      "role": "Edit",
+      "detail": "Time grid: EVEN, TRIP, DOT, FREE"
+    },
+    {
+      "name": "HOLD",
+      "role": "Edit",
+      "detail": "GATE = hold to engage. LATCH = stays after release; switch back to GATE to stop"
+    }
+  ]
+}

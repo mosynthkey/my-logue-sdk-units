@@ -1,0 +1,27 @@
+{
+  "id": "reverse",
+  "experimental": true,
+  "name": "Reverse",
+  "type": "fx",
+  "targets": [
+    "nts-3_kaoss"
+  ],
+  "description": "Glitch\u00b2-style Reverse for NTS-3. Continuously captures AUDIO IN (get_raw_input on firmware 1.4+) and freezes a tempo slice on touch, playing it in ping-pong reverse/forward. Y = slice length (bottom long, top short). Depth = wet. Untouched = bypass. SYNC: EVEN, TRIP, DOT, FREE. HOLD: GATE or LATCH.",
+  "params": [
+    {
+      "name": "MIX",
+      "role": "Depth",
+      "detail": "Dry/wet while the effect is engaged"
+    },
+    {
+      "name": "SYNC",
+      "role": "Edit",
+      "detail": "Time grid: EVEN, TRIP, DOT, FREE"
+    },
+    {
+      "name": "HOLD",
+      "role": "Edit",
+      "detail": "GATE = hold to engage. LATCH = stays after release; switch back to GATE to stop"
+    }
+  ]
+}

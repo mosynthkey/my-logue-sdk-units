@@ -178,15 +178,47 @@ export const dspExplainById = {
   Feed[Feedback] --> Comb
   Comb --> Clip[Softclip and DC] --> Out[Out]`,
   },
-  glitchpad: {
-    en: "Pad-down glitch FX on a stereo capture buffer. Touch start region locks Retrigger, Reverse, Shuffle, or Gate (Passort-style); Y sets musical slice / rate while held. Pad up bypasses to dry.",
-    ja: "パッド押下でステレオ捕獲バッファ上のグリッチをかけます。タッチ開始位置でリトリガ／逆再生／シャッフル／ゲートをロックし、Yでスライス長。離すとバイパスします。",
+  retrig: {
+    en: "Pad-down Retrigger on a stereo capture buffer. Touch freezes a tempo slice and loops it forward with crossfade; Y sets slice length. Pad up bypasses to dry.",
+    ja: "パッド押下でステレオ捕獲バッファのスライスをフリーズし、前方ループします。Yでスライス長。離すとバイパスします。",
     mermaid: `flowchart LR
   In[Live in] --> Buf[Stereo ring buffer]
-  Start[Touch start region] --> Mode[4 glitch modes]
-  Buf --> Mode
-  Y[Y slice rate] --> Mode
-  Mode --> Mix[Dry or wet fade] --> Out[Out]
+  Touch[Touch freeze] --> Loop[Forward loop and decay]
+  Buf --> Loop
+  Y[Y slice] --> Loop
+  Loop --> Mix[Dry or wet fade] --> Out[Out]
+  In --> Mix`,
+  },
+  reverse: {
+    en: "Pad-down Reverse on a stereo capture buffer. Touch freezes a tempo slice and ping-pongs it; Y sets slice length. Pad up bypasses to dry.",
+    ja: "パッド押下でステレオ捕獲バッファのスライスをフリーズし、往復再生します。Yでスライス長。離すとバイパスします。",
+    mermaid: `flowchart LR
+  In[Live in] --> Buf[Stereo ring buffer]
+  Touch[Touch freeze] --> Ping[Ping-pong reverse]
+  Buf --> Ping
+  Y[Y slice] --> Ping
+  Ping --> Mix[Dry or wet fade] --> Out[Out]
+  In --> Mix`,
+  },
+  shuffle: {
+    en: "Pad-down Shuffle on a stereo capture buffer. Touch freezes about one bar and jumps between random sub-slices; Y sets sub-slice length. Pad up bypasses to dry.",
+    ja: "パッド押下で約1小節をフリーズし、ランダムな部分スライスを飛び回ります。Yで部分スライス長。離すとバイパスします。",
+    mermaid: `flowchart LR
+  In[Live in] --> Buf[One-bar ring buffer]
+  Touch[Touch freeze] --> Shuf[Random sub-slices]
+  Buf --> Shuf
+  Y[Y sub-slice] --> Shuf
+  Shuf --> Mix[Dry or wet fade] --> Out[Out]
+  In --> Mix`,
+  },
+  gater: {
+    en: "Pad-down trance Gate on live AUDIO IN (no freeze). Y sets gate rate on the tempo grid; DECAY smooths edges. Pad up bypasses to dry.",
+    ja: "ライブ入力をテンポグリッドで切り刻むトランスゲートです（フリーズなし）。Yで速度、DECAYでエッジ。離すとバイパスします。",
+    mermaid: `flowchart LR
+  In[Live in] --> Gate[Tempo trance gate]
+  Y[Y rate] --> Gate
+  Decay[DECAY smooth] --> Gate
+  Gate --> Mix[Dry or wet fade] --> Out[Out]
   In --> Mix`,
   },
   grainpad: {

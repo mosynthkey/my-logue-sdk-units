@@ -26,17 +26,17 @@ test("pluginCategory prefers an explicit category when it is known", () => {
 test("filterPluginsByCategory keeps every plugin for all", () => {
   const plugins = [
     { id: "hypersaw", type: "osc" },
-    { id: "glitchpad", type: "fx" },
+    { id: "retrig", type: "fx" },
     { id: "shaker", type: "shaker" },
   ];
 
   assert.deepEqual(
     filterPluginsByCategory(plugins, "all").map((plugin) => plugin.id),
-    ["hypersaw", "glitchpad", "shaker"],
+    ["hypersaw", "retrig", "shaker"],
   );
   assert.deepEqual(
     filterPluginsByCategory(plugins, "fx").map((plugin) => plugin.id),
-    ["glitchpad"],
+    ["retrig"],
   );
   assert.deepEqual(
     filterPluginsByCategory(plugins, "drum").map((plugin) => plugin.id),

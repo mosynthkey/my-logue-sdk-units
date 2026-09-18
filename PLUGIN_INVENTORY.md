@@ -40,9 +40,21 @@
   - 対応: nts-1_mkii, microkorg2
   - JP-8080 風フィードバックオシレータ。帯域制限ソーをキー追従の共振コムで加工。
 
-- **GlitchPad** (`glitchpad`) — fx（実験的）
+- **Retrig** (`retrig`) — fx（実験的）
   - 対応: nts-3_kaoss
-  - Glitch² 風 XY パッド。テンポ同期の AUDIO IN バッファからシーン（RTRG/REV/SHUF 等）を再生。非タッチ=バイパス。X=シーン、Y=スライス/レート。
+  - Glitch² 風リトリガー。タッチでスライスをフリーズして前方ループ。Y=スライス長。非タッチ=バイパス。
+
+- **Reverse** (`reverse`) — fx（実験的）
+  - 対応: nts-3_kaoss
+  - Glitch² 風リバース。タッチでスライスをフリーズして往復再生。Y=スライス長。非タッチ=バイパス。
+
+- **Shuffle** (`shuffle`) — fx（実験的）
+  - 対応: nts-3_kaoss
+  - Glitch² 風シャッフル。約1小節をフリーズしランダム部分スライスを再生。Y=部分スライス長。非タッチ=バイパス。
+
+- **Gater** (`gater`) — fx（実験的）
+  - 対応: nts-3_kaoss
+  - Glitch² 風トランスゲート。ライブ入力をテンポグリッドで切り刻む。Y=ゲート速度。非タッチ=バイパス。
 
 - **GrainPad** (`grainpad`) — fx（実験的）
   - 対応: nts-3_kaoss
