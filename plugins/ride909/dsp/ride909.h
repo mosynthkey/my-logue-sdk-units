@@ -96,9 +96,10 @@ public:
     switch (index)
     {
     case PITCH:
-      // Edit knob only. Pad X is applied in touchEvent so the NTS-3 host does
-      // not restore mapping.value (center) on finger-up.
-      applyPitch10Bit(value);
+      // Host X/Edit write clock_ratio_ for the *next* trigger. Active one-shots
+      // keep the phase_inc sampled in triggerRide() until they finish.
+      pitch_norm_ = (static_cast<float>(value) - 512.f) * (1.f / 512.f);
+      updateClockRatio();
       break;
     case PUMP:
       pump_amount_ = param_10bit_to_f32(value);
@@ -177,13 +178,12 @@ public:
   void touchEvent(uint8_t id, uint8_t phase, uint32_t x, uint32_t y) override final
   {
     (void)id;
+    (void)x;
     (void)y;
 
     if (phase == k_unit_touch_phase_began || phase == k_unit_touch_phase_moved ||
         phase == k_unit_touch_phase_stationary)
     {
-      // Latch Tune from pad X; leave it alone on release (no snap-back).
-      applyPitch10Bit(static_cast<int32_t>(x > 1023U ? 1023U : x));
       if (!running_)
       {
         syncToNearestClockAsStep1();
@@ -323,19 +323,6 @@ private:
       pump_gain_ = 1.f;
   }
 
-  void applyPitch10Bit(int32_t value)
-  {
-    int32_t clamped = value;
-    if (clamped < 0)
-      clamped = 0;
-    if (clamped > 1023)
-      clamped = 1023;
-    pitch_norm_ = (static_cast<float>(clamped) - 512.f) * (1.f / 512.f);
-    updateClockRatio();
-    // Hardware Tune moves the ROM clock live; keep active voices in sync.
-    updateActiveVoiceRates();
-  }
-
   void updateClockRatio()
   {
     // pitch_norm_ −1 = full pot (lowest), +1 = zero pot resistance (highest).
@@ -345,17 +332,6 @@ private:
     if (r_ohms > kTuneRFixedOhms + kTuneRPotOhms)
       r_ohms = kTuneRFixedOhms + kTuneRPotOhms;
     clock_ratio_ = kTuneRMidOhms / r_ohms;
-  }
-
-  void updateActiveVoiceRates()
-  {
-    const float phase_inc = kRomPhaseInc * clock_ratio_;
-    for (uint32_t voiceIndex = 0; voiceIndex < kVoiceCount; ++voiceIndex)
-    {
-      Voice &voice = voices_[voiceIndex];
-      if (voice.active)
-        voice.phase_inc = phase_inc;
-    }
   }
 
   void resetVoices()

@@ -63,7 +63,10 @@ Colin Fraser’s 32 kHz dump rate sits between those two.
 
 A linear B pot is linear in **R**, hence in **1/f**, not in semitones. Mapping X as a symmetric ±octave (or ±7.8 st around the geometric mean) makes the **low end ~1.7 st too low** and the high end ~1.7 st too narrow. This unit maps X through `clock_ratio = R_mid / (R478 + pot)`, matching the panel. Playback is **zero-order hold**. Because the address counter *is* the envelope DAC, faster Tune also shortens the decay.
 
-Edit **PITCH** and pad **X** share the same unipolar linear 0…1023 path (no bipolar dead-zone). Pad X is applied in `touchEvent` (not via `default_mappings` assign_x) so the NTS-3 host does not restore `mapping.value` on finger-up — Tune stays latched. Changing Tune also updates `phase_inc` on already-active voices, like the hardware clock.
+Edit **PITCH** and pad **X** share the same unipolar linear 0…1023 host path
+(`assign_x`, no bipolar dead-zone). Each one-shot samples `phase_inc` at trigger
+and keeps that rate until the voice ends — moving X / host restore mid-hit does
+not retune an already-playing ride.
 
 ### DAC
 
@@ -141,7 +144,7 @@ g++ -O2 -std=c++11 $INC plugins/ride909/scripts/measure_params.cc -o /tmp/ride90
 
 `measure_params` checks: Tune ratios match R478+VR30 at panel mid (−6.12 / +9.54 st),
 center ROM clock is 35 kHz, TONE brightens the first LPF pole, DEC shortens the late
-tail, and mid-hit PITCH changes update active `phase_inc` (Edit knob ≡ pad X path).
+tail, and mid-hit PITCH changes do **not** retune an active one-shot `phase_inc`.
 
 ## Sources
 

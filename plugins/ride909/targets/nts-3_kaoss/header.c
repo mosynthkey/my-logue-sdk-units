@@ -64,9 +64,9 @@ const __unit_header genericfx_unit_header_t unit_header = {
             {0, 0, 0, 0, k_unit_param_type_none, 0, 0, 0, {""}}},
     },
     .default_mappings = {
-        // PITCH is Edit-only in the host mapping. Pad X writes Tune inside
-        // touchEvent so finger-up does not snap back to mapping.value (512).
-        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 512},
+        // Unipolar: Edit knob and X pad share the same linear 0..1023 path
+        // (bipolar added a center dead-zone and remapped the sides).
+        {k_genericfx_param_assign_x, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 512},
         {k_genericfx_param_assign_y, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 0},
         {k_genericfx_param_assign_depth, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1000, 1000},
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 512},
