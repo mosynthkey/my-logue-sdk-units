@@ -7,8 +7,8 @@
  * multimode resonant TPT SVF). Dry by default; touch engages. Each grid
  * period redraws a random bipolar offset around CUT; DEPTH scales that
  * offset in octaves. Y is resonance (capped). TYPE picks Peak / LPF12 /
- * LPF24 / BPF / HPF12 / HPF24. SLEW is a one-pole smoother on the cutoff
- * Hz toward each new S&H target (not linear interpolation). LEVEL scales
+ * LPF24 / BPF / HPF12 / HPF24. SLEW is a one-pole time constant on the
+ * cutoff Hz toward each new S&H target (higher = slower). LEVEL scales
  * wet before the final softclip.
  */
 
@@ -27,8 +27,8 @@ public:
   static constexpr float kMaxDepthOctaves = 5.f;
   static constexpr float kMaxResonanceNorm = 0.8f;
   static constexpr float kParamSmoothCoeff = 0.0025f;
-  static constexpr float kMinSlewSec = 0.0005f;
-  static constexpr float kMaxSlewSec = 0.12f;
+  static constexpr float kMinSlewSec = 0.001f;
+  static constexpr float kMaxSlewSec = 1.5f;
   static constexpr uint8_t kNumPeriods = 8U;
   static constexpr uint8_t kNumTypes = 6U;
 
@@ -185,10 +185,11 @@ public:
     const float sr = getSampleRate();
     const float beat = static_cast<float>(fx::samplesPerBeat(bpm_, sr));
     const float period_samples = beat * 0.25f * periodSixteenths(period_sel_);
+    // Quadratic map: low SLEW stays snappy, high SLEW stretches toward kMaxSlewSec.
     const float slew_sec = kMinSlewSec + slew_norm_ * slew_norm_ * (kMaxSlewSec - kMinSlewSec);
-    // Per-sample coeff near 1: linearize exp (fasterexpf is biased near 0).
-    const float slew_x = -1.f / (slew_sec * sr);
-    const float slew_coeff = fx::clip(1.f + slew_x, 0.f, 1.f);
+    // One-pole toward target: y += (t - y) * alpha, alpha ≈ 1/(tau*sr).
+    // Do not use the near-1 feedback coeff here (that would invert SLEW).
+    const float slew_alpha = fx::clip(1.f / (slew_sec * sr), 0.f, 1.f);
 
     for (uint32_t sampleIndex = 0; sampleIndex < frames; ++sampleIndex)
     {
@@ -219,7 +220,7 @@ public:
       }
 
       const float target_hz = modulatedCutoffHz(cutoff_norm_smooth_, depth_smooth_, hold_bipolar_);
-      cutoff_hz_smooth_ += (target_hz - cutoff_hz_smooth_) * slew_coeff;
+      cutoff_hz_smooth_ += (target_hz - cutoff_hz_smooth_) * slew_alpha;
 
       const float filtered_left =
           processFilter(live_left, cutoff_hz_smooth_, resonance_norm_smooth_, type_sel_, svf_left_a_, svf_left_b_);

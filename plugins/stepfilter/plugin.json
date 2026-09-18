@@ -40,7 +40,7 @@
     {
       "name": "SLEW",
       "role": "Edit",
-      "detail": "One-pole smoothing time toward each new S&H cutoff (Hz)"
+      "detail": "Cutoff glide time toward each new S&H target (higher = slower, up to ~1.5 s)"
     },
     {
       "name": "LEVEL",
