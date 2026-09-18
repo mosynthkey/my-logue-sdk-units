@@ -96,11 +96,9 @@ public:
     switch (index)
     {
     case PITCH:
-      pitch_norm_ = (static_cast<float>(value) - 512.f) * (1.f / 512.f);
-      updateClockRatio();
-      // Hardware Tune moves the ROM clock live; keep active voices in sync so
-      // Edit knob and X pad sound the same while a hit is playing.
-      updateActiveVoiceRates();
+      // Edit knob only. Pad X is applied in touchEvent so the NTS-3 host does
+      // not restore mapping.value (center) on finger-up.
+      applyPitch10Bit(value);
       break;
     case PUMP:
       pump_amount_ = param_10bit_to_f32(value);
@@ -179,12 +177,13 @@ public:
   void touchEvent(uint8_t id, uint8_t phase, uint32_t x, uint32_t y) override final
   {
     (void)id;
-    (void)x;
     (void)y;
 
     if (phase == k_unit_touch_phase_began || phase == k_unit_touch_phase_moved ||
         phase == k_unit_touch_phase_stationary)
     {
+      // Latch Tune from pad X; leave it alone on release (no snap-back).
+      applyPitch10Bit(static_cast<int32_t>(x > 1023U ? 1023U : x));
       if (!running_)
       {
         syncToNearestClockAsStep1();
@@ -322,6 +321,19 @@ private:
     pump_gain_ += (1.f - pump_gain_) * step;
     if (pump_gain_ > 1.f)
       pump_gain_ = 1.f;
+  }
+
+  void applyPitch10Bit(int32_t value)
+  {
+    int32_t clamped = value;
+    if (clamped < 0)
+      clamped = 0;
+    if (clamped > 1023)
+      clamped = 1023;
+    pitch_norm_ = (static_cast<float>(clamped) - 512.f) * (1.f / 512.f);
+    updateClockRatio();
+    // Hardware Tune moves the ROM clock live; keep active voices in sync.
+    updateActiveVoiceRates();
   }
 
   void updateClockRatio()

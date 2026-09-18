@@ -270,6 +270,29 @@ int main()
       return 21; // expect a real mismatch under the old bipolar curve
   }
 
+  // Pad X latches Tune: finger-up must not snap pitch back to center.
+  {
+    Ride909 latch;
+    latch.init(nullptr);
+    latch.setParameter(Ride909::MIX, 1000);
+    latch.setParameter(Ride909::PUMP, 0);
+    latch.setParameter(Ride909::PITCH, 512);
+    latch.setTempo(21.f);
+    latch.touchEvent(0, k_unit_touch_phase_began, 200U, 0U);
+    const float held_ratio = latch.debugClockRatio();
+    latch.touchEvent(0, k_unit_touch_phase_ended, 200U, 0U);
+    const float after_ratio = latch.debugClockRatio();
+    std::printf("pitch_latch held=%.4f after_release=%.4f\n", held_ratio, after_ratio);
+    if (std::fabs(held_ratio - after_ratio) > 1.0e-5f)
+      return 22;
+    if (std::fabs(held_ratio - 1.f) < 0.05f)
+      return 23; // must have moved away from center via pad X
+    // Simulated host restore to mapping.value must not be required; Edit still works.
+    latch.setParameter(Ride909::PITCH, 700);
+    if (!(latch.debugClockRatio() > after_ratio))
+      return 24;
+  }
+
   std::printf("ride909_params_ok=1\n");
   return 0;
 }
