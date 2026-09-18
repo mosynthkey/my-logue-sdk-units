@@ -122,7 +122,7 @@ public:
     resonance_norm_smooth_ = 0.45f * kMaxResonanceNorm;
     cutoff_norm_target_ = 0.5f;
     cutoff_norm_smooth_ = 0.5f;
-    smooth_norm_ = 0.15f;
+    smooth_norm_ = 0.f;
     mix_ = 1.f;
     level_ = 1.f;
     period_sel_ = PERIOD_1STEP;
