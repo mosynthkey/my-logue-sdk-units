@@ -1,0 +1,32 @@
+{
+  "id": "retrig",
+  "experimental": true,
+  "name": "Retrig",
+  "type": "fx",
+  "targets": [
+    "nts-3_kaoss"
+  ],
+  "description": "Glitch\u00b2-style Retrigger for NTS-3. Continuously captures AUDIO IN (get_raw_input on firmware 1.4+) and freezes a tempo slice on touch, looping it forward with crossfade. Y = slice length (bottom long, top short). Depth = wet. Untouched = bypass. DECAY fades each wrap. SYNC: EVEN, TRIP, DOT, FREE. HOLD: GATE or LATCH.",
+  "params": [
+    {
+      "name": "MIX",
+      "role": "Depth",
+      "detail": "Dry/wet while the effect is engaged"
+    },
+    {
+      "name": "DECAY",
+      "role": "Edit",
+      "detail": "Fade amount applied on each loop wrap"
+    },
+    {
+      "name": "SYNC",
+      "role": "Edit",
+      "detail": "Time grid: EVEN, TRIP, DOT, FREE"
+    },
+    {
+      "name": "HOLD",
+      "role": "Edit",
+      "detail": "GATE = hold to engage. LATCH = stays after release; switch back to GATE to stop"
+    }
+  ]
+}
