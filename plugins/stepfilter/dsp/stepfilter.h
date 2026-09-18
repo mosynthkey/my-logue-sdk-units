@@ -7,11 +7,9 @@
  * multimode resonant TPT SVF). Dry by default; touch engages. Each grid
  * period redraws a random bipolar offset around CUT; DEPTH scales that
  * offset in octaves. Y is resonance (capped). TYPE picks Peak / LPF12 /
- * LPF24 / BPF / HPF12 / HPF24 / Variable. Variable morphs continuously
- * across LPF24→LPF12→BPF→HPF12→HPF24 (adjacent taps mixed by fraction) and
- * redraws that internal SVF-type position each step, then linearly ramps to
- * it over SLEW (avoids clicks from abrupt tap changes). LEVEL scales wet
- * before the final softclip.
+ * LPF24 / BPF / HPF12 / HPF24. SLEW is a one-pole smoother on the cutoff
+ * Hz toward each new S&H target (not linear interpolation). LEVEL scales
+ * wet before the final softclip.
  */
 
 #include "fx_dsp.h"
@@ -31,11 +29,8 @@ public:
   static constexpr float kParamSmoothCoeff = 0.0025f;
   static constexpr float kMinSlewSec = 0.0005f;
   static constexpr float kMaxSlewSec = 0.12f;
-  // Floor for Var SVF-type linear ramps so tap crossfades are never near-instant.
-  static constexpr float kMinMorphSlewSec = 0.004f;
   static constexpr uint8_t kNumPeriods = 8U;
-  static constexpr uint8_t kNumTypes = 7U;
-  static constexpr uint8_t kNumSvfMorphTaps = 5U;
+  static constexpr uint8_t kNumTypes = 6U;
 
   uint32_t getBufferSize() const override final { return 0; }
 
@@ -71,8 +66,7 @@ public:
     TYPE_LPF24,
     TYPE_BPF,
     TYPE_HPF12,
-    TYPE_HPF24,
-    TYPE_VARIABLE
+    TYPE_HPF24
   };
 
   void setParameter(uint8_t index, int32_t value) override final
@@ -111,7 +105,7 @@ public:
   const char *getParameterStrValue(uint8_t index, int32_t value) const override final
   {
     static const char *period_names[kNumPeriods] = {"4Bar", "2Bar", "16St", "8St", "4St", "2St", "1St", "1/2"};
-    static const char *type_names[kNumTypes] = {"Peak", "LP12", "LP24", "BPF", "HP12", "HP24", "Var"};
+    static const char *type_names[kNumTypes] = {"Peak", "LP12", "LP24", "BPF", "HP12", "HP24"};
     if (index == STEPS && value >= 0 && value < static_cast<int32_t>(kNumPeriods))
       return period_names[value];
     if (index == TYPE && value >= 0 && value < static_cast<int32_t>(kNumTypes))
@@ -135,13 +129,6 @@ public:
     type_sel_ = TYPE_PEAK;
     clock_acc_ = 0.f;
     hold_bipolar_ = 0.f;
-    hold_svf_type_ = 0.5f;
-    svf_type_smooth_ = 0.5f;
-    morph_from_ = 0.5f;
-    morph_to_ = 0.5f;
-    morph_phase_ = 1.f;
-    morph_inc_ = 1.f;
-    svf_type_ramp_pending_ = false;
     cutoff_hz_smooth_ = baseCutoffHz(0.5f);
     rng_ = 0xA5F15237U;
     pad_held_ = false;
@@ -155,11 +142,6 @@ public:
     cutoff_norm_smooth_ = cutoff_norm_target_;
     clock_acc_ = 0.f;
     hold_bipolar_ = 0.f;
-    svf_type_smooth_ = hold_svf_type_;
-    morph_from_ = hold_svf_type_;
-    morph_to_ = hold_svf_type_;
-    morph_phase_ = 1.f;
-    svf_type_ramp_pending_ = false;
     cutoff_hz_smooth_ = baseCutoffHz(cutoff_norm_smooth_);
     pad_held_ = false;
     resetSvf();
@@ -179,12 +161,6 @@ public:
       clock_acc_ = 0.f;
       resetSvf();
       sampleHold();
-      // First step after touch: land on the held type (no prior audio to click).
-      svf_type_smooth_ = hold_svf_type_;
-      morph_from_ = hold_svf_type_;
-      morph_to_ = hold_svf_type_;
-      morph_phase_ = 1.f;
-      svf_type_ramp_pending_ = false;
       return;
     }
     if (phase == k_unit_touch_phase_moved || phase == k_unit_touch_phase_stationary)
@@ -210,12 +186,9 @@ public:
     const float beat = static_cast<float>(fx::samplesPerBeat(bpm_, sr));
     const float period_samples = beat * 0.25f * periodSixteenths(period_sel_);
     const float slew_sec = kMinSlewSec + slew_norm_ * slew_norm_ * (kMaxSlewSec - kMinSlewSec);
-    const float morph_slew_sec = kMinMorphSlewSec + slew_norm_ * slew_norm_ * (kMaxSlewSec - kMinMorphSlewSec);
     // Per-sample coeff near 1: linearize exp (fasterexpf is biased near 0).
     const float slew_x = -1.f / (slew_sec * sr);
     const float slew_coeff = fx::clip(1.f + slew_x, 0.f, 1.f);
-    const float morph_samples = morph_slew_sec * sr;
-    const float morph_inc = 1.f / (morph_samples > 1.f ? morph_samples : 1.f);
 
     for (uint32_t sampleIndex = 0; sampleIndex < frames; ++sampleIndex)
     {
@@ -245,45 +218,13 @@ public:
         sampleHold();
       }
 
-      if (svf_type_ramp_pending_)
-      {
-        svf_type_ramp_pending_ = false;
-        morph_from_ = svf_type_smooth_;
-        morph_to_ = hold_svf_type_;
-        morph_phase_ = 0.f;
-        morph_inc_ = morph_inc;
-      }
-      if (morph_phase_ < 1.f)
-      {
-        morph_phase_ += morph_inc_;
-        if (morph_phase_ >= 1.f)
-        {
-          morph_phase_ = 1.f;
-          svf_type_smooth_ = morph_to_;
-        }
-        else
-        {
-          svf_type_smooth_ = morph_from_ + (morph_to_ - morph_from_) * morph_phase_;
-        }
-      }
-
       const float target_hz = modulatedCutoffHz(cutoff_norm_smooth_, depth_smooth_, hold_bipolar_);
       cutoff_hz_smooth_ += (target_hz - cutoff_hz_smooth_) * slew_coeff;
 
-      float filtered_left = 0.f;
-      float filtered_right = 0.f;
-      if (type_sel_ == TYPE_VARIABLE)
-      {
-        filtered_left = processVariableFilter(live_left, cutoff_hz_smooth_, resonance_norm_smooth_, svf_type_smooth_,
-                                              svf_left_a_, svf_left_b_, svf_left_c_);
-        filtered_right = processVariableFilter(live_right, cutoff_hz_smooth_, resonance_norm_smooth_, svf_type_smooth_,
-                                               svf_right_a_, svf_right_b_, svf_right_c_);
-      }
-      else
-      {
-        filtered_left = processFilter(live_left, cutoff_hz_smooth_, resonance_norm_smooth_, type_sel_, svf_left_a_, svf_left_b_);
-        filtered_right = processFilter(live_right, cutoff_hz_smooth_, resonance_norm_smooth_, type_sel_, svf_right_a_, svf_right_b_);
-      }
+      const float filtered_left =
+          processFilter(live_left, cutoff_hz_smooth_, resonance_norm_smooth_, type_sel_, svf_left_a_, svf_left_b_);
+      const float filtered_right =
+          processFilter(live_right, cutoff_hz_smooth_, resonance_norm_smooth_, type_sel_, svf_right_a_, svf_right_b_);
 
       // Clip before softclip: fastertanhf is unusable for |x| ≫ 1.
       const float wet_left = fx::softclip(fx::clip(filtered_left * level_, -1.5f, 1.5f));
@@ -309,20 +250,13 @@ private:
   {
     svf_left_a_ = SvfState();
     svf_left_b_ = SvfState();
-    svf_left_c_ = SvfState();
     svf_right_a_ = SvfState();
     svf_right_b_ = SvfState();
-    svf_right_c_ = SvfState();
   }
 
   void sampleHold()
   {
     hold_bipolar_ = fx::randomFloat(rng_) * 2.f - 1.f;
-    if (type_sel_ == TYPE_VARIABLE)
-    {
-      hold_svf_type_ = fx::randomFloat(rng_);
-      svf_type_ramp_pending_ = true;
-    }
   }
 
   static float periodSixteenths(uint8_t period_sel)
@@ -351,19 +285,6 @@ private:
   static float resonanceComp(float resonance_norm)
   {
     return 1.f / (1.f + resonance_norm * resonance_norm * 3.5f);
-  }
-
-  // Continuous SVF type in [0,1]: LPF24 → LPF12 → BPF → HPF12 → HPF24.
-  // Linear crossfade between the two nearest taps.
-  static float morphSvfType(float svf_type_norm, float lp24, float lp12, float bpf, float hp12, float hp24)
-  {
-    const float taps[kNumSvfMorphTaps] = {lp24, lp12, bpf, hp12, hp24};
-    const float pos = fx::clip01(svf_type_norm) * static_cast<float>(kNumSvfMorphTaps - 1U);
-    const uint8_t tap_index = static_cast<uint8_t>(pos);
-    if (tap_index >= kNumSvfMorphTaps - 1U)
-      return taps[kNumSvfMorphTaps - 1U];
-    const float frac = pos - static_cast<float>(tap_index);
-    return fx::mix(taps[tap_index], taps[tap_index + 1U], frac);
   }
 
   // TPT SVF tick: returns low / band / high.
@@ -442,40 +363,8 @@ private:
     return output;
   }
 
-  float processVariableFilter(float input, float cutoff_hz, float resonance_norm, float svf_type_norm,
-                              SvfState &stage_a, SvfState &stage_lp24, SvfState &stage_hp24)
-  {
-    const float fc = fx::clip(cutoff_hz, kMinFilterCutoffHz, 16000.f);
-    const float g = fastertanfullf(3.14159265f * fc / getSampleRate());
-    const float k = 1.f / resonanceQ(resonance_norm);
-    const float drive_comp = resonanceComp(resonance_norm);
-
-    float lp12 = 0.f;
-    float bpf = 0.f;
-    float hp12 = 0.f;
-    tickSvf(input, g, k, drive_comp, stage_a, lp12, bpf, hp12);
-
-    float lp24 = 0.f;
-    float band_lp = 0.f;
-    float high_lp = 0.f;
-    tickSvf(lp12, g, k * 1.35f, 1.f, stage_lp24, lp24, band_lp, high_lp);
-
-    float hp24 = 0.f;
-    float band_hp = 0.f;
-    float high_hp = 0.f;
-    tickSvf(hp12, g, k * 1.35f, 1.f, stage_hp24, hp24, band_hp, high_hp);
-
-    return morphSvfType(svf_type_norm, lp24, lp12, bpf, hp12, hp24);
-  }
-
   float clock_acc_ = 0.f;
   float hold_bipolar_ = 0.f;
-  float hold_svf_type_ = 0.5f;
-  float svf_type_smooth_ = 0.5f;
-  float morph_from_ = 0.5f;
-  float morph_to_ = 0.5f;
-  float morph_phase_ = 1.f;
-  float morph_inc_ = 1.f;
   float cutoff_hz_smooth_ = 1000.f;
   float bpm_ = 120.f;
   float depth_target_ = 0.55f;
@@ -491,11 +380,8 @@ private:
   uint8_t period_sel_ = PERIOD_1STEP;
   uint8_t type_sel_ = TYPE_PEAK;
   bool pad_held_ = false;
-  bool svf_type_ramp_pending_ = false;
   SvfState svf_left_a_;
   SvfState svf_left_b_;
-  SvfState svf_left_c_;
   SvfState svf_right_a_;
   SvfState svf_right_b_;
-  SvfState svf_right_c_;
 };
