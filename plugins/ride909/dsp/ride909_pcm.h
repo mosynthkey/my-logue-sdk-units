@@ -8,7 +8,9 @@
 #include <stdint.h>
 
 static const uint32_t kRide909PcmLength = 32768u;
-static constexpr float kRide909RomClockHz = 30000.f;
+// ROM clock at Tune pot mid (calibrated to MARS mid reference, not the
+// shared HH 30 kHz nominal).
+static constexpr float kRide909RomClockHz = 35000.f;
 static const uint32_t kRide909PcmPackedSize = 24577u;
 
 static const uint8_t kRide909PcmPacked[] = {

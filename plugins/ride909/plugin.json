@@ -6,7 +6,7 @@
   "targets": ["nts-3_kaoss"],
   "description": "Hold the pad and tap with the kick: the nearest clock becomes step 1, and a 4-step cycle plays the off-beat 909 ride (step 3) with kick sidechain on step 1. Pitch matches the hardware Tune pot (−6.1…+9.5 st).\nStill being fine-tuned; the official release is coming soon.",
   "params": [
-    { "name": "PITCH", "role": "X", "detail": "909 Tune: panel pot via R478+VR30 (≈−6.1…+9.5 st around 30 kHz); decay tracks pitch" },
+    { "name": "PITCH", "role": "X", "detail": "909 Tune (unipolar): panel mid = 35 kHz (MARS mid); span ≈−6.1…+9.5 st; same path as the Edit knob" },
     { "name": "PUMP", "role": "Y", "detail": "Kick sidechain amount (bottom = off, top = near-silent duck)" },
     { "name": "MIX", "role": "Depth", "detail": "Drum level attenuator (Audio In always full)" },
     { "name": "TONE", "role": "Edit", "detail": "Reconstruction LPF tilt (darker ↔ brighter)" },

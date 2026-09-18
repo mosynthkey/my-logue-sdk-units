@@ -71,7 +71,7 @@ int main()
     }
   }
 
-  if (kRide909PcmLength != 32768U || kRide909RomClockHz != 30000.f)
+  if (kRide909PcmLength != 32768U || kRide909RomClockHz != 35000.f)
   {
     std::printf("unexpected ROM geometry\n");
     return 1;

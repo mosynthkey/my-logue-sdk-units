@@ -9,8 +9,8 @@
  *   1 = kick sidechain pump, 3 = ride hit (2 and 4 silent).
  * Tap with the kick and rides land on the off-beats automatically.
  * X is 909 Tune: panel pot through R478+VR30 (1/R), zero-order hold,
- * no interpolation. Extremes are asymmetric (−6.1…+9.5 st). Decay shortens
- * as pitch rises, matching the hardware.
+ * no interpolation. Pad center = pot mid at 35 kHz (MARS mid). Extremes
+ * are asymmetric (−6.1…+9.5 st). Decay shortens as pitch rises.
  * Y is kick sidechain amount. Depth (MIX) is wet level only; dry input always passes.
  * Edit TONE tilts the first reconstruction pole. Edit DEC adds a soft VCA
  * choke (Roland Cloud–style RC Decay); max = full address envelope (hardware).
@@ -64,6 +64,10 @@ public:
   static constexpr float kTuneRMidOhms = kTuneRFixedOhms + 0.5f * kTuneRPotOhms;
   static constexpr float kPitchLowSemitones = -6.12f;
   static constexpr float kPitchHighSemitones = 9.54f;
+  // Panel-mid ROM clock: matched to MARS_909_ride_smooth_mid.wav (spectral
+  // corr ≈0.94 at 35 kHz vs ≈0.39 at the old shared 30 kHz nominal).
+  static constexpr float kCenterRomClockHz = 35000.f;
+  static constexpr float kRomPhaseInc = kCenterRomClockHz / tr909::kHostRateHz;
   static constexpr float kMaxPumpDepth = 0.985f;
   static constexpr float kPumpHoldFraction = 0.32f;
   static constexpr float kPumpReleaseSixteenths = 2.6f;
@@ -71,7 +75,6 @@ public:
   // GAIN Edit: 0 = unity, max ≈ +12 dB (×4) on top of MIX.
   static constexpr float kGainBoostMax = 3.f;
   static constexpr float kVoiceGain = 0.42f;
-  static constexpr float kRomPhaseInc = tr909::kRomPhaseInc;
   static constexpr float kLpfACoeff = tr909::kLpfACoeff;
   static constexpr float kLpfBCoeff = tr909::kLpfBCoeff;
 
@@ -95,6 +98,9 @@ public:
     case PITCH:
       pitch_norm_ = (static_cast<float>(value) - 512.f) * (1.f / 512.f);
       updateClockRatio();
+      // Hardware Tune moves the ROM clock live; keep active voices in sync so
+      // Edit knob and X pad sound the same while a hit is playing.
+      updateActiveVoiceRates();
       break;
     case PUMP:
       pump_amount_ = param_10bit_to_f32(value);
@@ -232,6 +238,16 @@ public:
   {
     return fx::clip(kLpfACoeff - 0.18f + tone_norm_ * 0.36f, 0.28f, 0.82f);
   }
+  // First active voice's phase_inc, or 0 if none (host probes only).
+  float debugActivePhaseInc() const
+  {
+    for (uint32_t voiceIndex = 0; voiceIndex < kVoiceCount; ++voiceIndex)
+    {
+      if (voices_[voiceIndex].active)
+        return voices_[voiceIndex].phase_inc;
+    }
+    return 0.f;
+  }
 
 private:
   struct Voice
@@ -317,6 +333,17 @@ private:
     if (r_ohms > kTuneRFixedOhms + kTuneRPotOhms)
       r_ohms = kTuneRFixedOhms + kTuneRPotOhms;
     clock_ratio_ = kTuneRMidOhms / r_ohms;
+  }
+
+  void updateActiveVoiceRates()
+  {
+    const float phase_inc = kRomPhaseInc * clock_ratio_;
+    for (uint32_t voiceIndex = 0; voiceIndex < kVoiceCount; ++voiceIndex)
+    {
+      Voice &voice = voices_[voiceIndex];
+      if (voice.active)
+        voice.phase_inc = phase_inc;
+    }
   }
 
   void resetVoices()
