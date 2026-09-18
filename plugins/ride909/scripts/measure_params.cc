@@ -100,6 +100,8 @@ int main()
                 low_ratio, mid_ratio, high_ratio, expected_low, expected_high);
     if (std::fabs(mid_ratio - 1.f) > 0.02f)
       return 1;
+    if (std::fabs(Ride909::kCenterRomClockHz - 35000.f) > 0.5f)
+      return 15;
     if (std::fabs(low_ratio - expected_low) > 0.02f)
       return 2;
     if (std::fabs(high_ratio - expected_high) > 0.05f)

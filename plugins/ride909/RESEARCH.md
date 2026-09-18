@@ -47,15 +47,19 @@ The 6-bit codes are not a fully flattened/companded brick: RMS still falls about
 
 There is no crystal. A 4011UB NAND astable (9090: R478=6.8k, R477=10k, C168=470pF, VR30=10kB Tune) runs around 60 kHz and a 4013 divides it by two. That clock is the ROM sample rate.
 
-This unit uses **30 kHz at Tune center** (panel mid), which is the figure given in service discussions (60 kHz osc / 2) and is close to Colin Fraser's 32 kHz working rate.
+This unit uses **35 kHz at Tune center** (panel mid). The often-cited 30 kHz
+figure is the HH / “nominal cymbal” ballpark; A/B against
+`assets/MARS_909_ride_smooth_mid.wav` peaks at **35 kHz** (spectral correlation
+≈0.94 vs ≈0.39 at 30 kHz), about +267 cents above the old shared nominal.
+Colin Fraser’s 32 kHz dump rate sits between those two.
 
 9090 Ride clock parts (same on Crash): **C168=470pF**, timing **R = R478 (6.8k) + VR30 (10kB linear)**. **R477=10k is input protection on the 4011UB**, not part of the timing R. So:
 
-| Pot | R | vs panel mid | ROM clock @ 30 kHz mid |
+| Pot | R | vs panel mid | ROM clock @ 35 kHz mid |
 | --- | --- | --- | --- |
-| CW (min R) | 6.8k | **+9.54 st** | ~52.1 kHz |
-| Mid | 11.8k | 0 | 30 kHz |
-| CCW (max R) | 16.8k | **−6.12 st** | ~21.1 kHz |
+| CW (min R) | 6.8k | **+9.54 st** | ~60.7 kHz |
+| Mid | 11.8k | 0 | 35 kHz |
+| CCW (max R) | 16.8k | **−6.12 st** | ~24.6 kHz |
 
 A linear B pot is linear in **R**, hence in **1/f**, not in semitones. Mapping X as a symmetric ±octave (or ±7.8 st around the geometric mean) makes the **low end ~1.7 st too low** and the high end ~1.7 st too narrow. This unit maps X through `clock_ratio = R_mid / (R478 + pot)`, matching the panel. Playback is **zero-order hold**. Because the address counter *is* the envelope DAC, faster Tune also shortens the decay.
 
@@ -133,7 +137,8 @@ g++ -O2 -std=c++11 $INC plugins/ride909/scripts/measure_params.cc -o /tmp/ride90
 /tmp/ride909_params
 ```
 
-`measure_params` checks: Tune ratios match R478+VR30 at panel mid (−6.12 / +9.54 st), TONE brightens the first LPF pole, and DEC shortens the late tail.
+`measure_params` checks: Tune ratios match R478+VR30 at panel mid (−6.12 / +9.54 st),
+center ROM clock is 35 kHz, TONE brightens the first LPF pole, and DEC shortens the late tail.
 
 ## Sources
 

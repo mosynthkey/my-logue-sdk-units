@@ -79,7 +79,7 @@ def write_header(path: pathlib.Path, codes: bytes, packed: bytes, rom_crc: int, 
         "#include <stdint.h>",
         "",
         f"static const uint32_t kRide909PcmLength = {len(codes)}u;",
-        "static constexpr float kRide909RomClockHz = 30000.f;",
+        "static constexpr float kRide909RomClockHz = 35000.f;",
         f"static const uint32_t kRide909PcmPackedSize = {len(packed)}u;",
         "",
         "static const uint8_t kRide909PcmPacked[] = {",
@@ -106,7 +106,7 @@ def main() -> int:
     codes = extract_pcm6(rom)
     packed = pack_pcm6(codes)
     write_header(args.out, codes, packed, crc, sha1)
-    duration_ms = 1000.0 * len(codes) / 30000.0
+    duration_ms = 1000.0 * len(codes) / 35000.0
     print(
         f"Wrote {args.out} ({len(codes)} x 6-bit, {duration_ms:.0f} ms @ 30 kHz, "
         f"{len(packed)} packed bytes, crc32={crc:08x})"
