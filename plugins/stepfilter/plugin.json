@@ -38,9 +38,9 @@
       "detail": "Filter mode: Peak, LP12, LP24, BPF, HP12, HP24"
     },
     {
-      "name": "SLEW",
+      "name": "SMOOTH",
       "role": "Edit",
-      "detail": "Cutoff glide time toward each new S&H target (higher = slower, up to ~1.5 s)"
+      "detail": "Cutoff glide: 0 = instant step, max = very slow blend toward each new S&H value"
     },
     {
       "name": "LEVEL",

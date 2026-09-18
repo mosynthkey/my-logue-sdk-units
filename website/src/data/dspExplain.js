@@ -576,8 +576,8 @@ export const dspExplainById = {
   Depth[X depth] --> CutMod
   Cut[CUT center] --> CutMod
   In[Audio in] --> Flt[TPT SVF]
-  CutMod --> Slew[Cutoff one-pole slew]
-  Slew --> Flt
+  CutMod --> Smooth[Cutoff smooth]
+  Smooth --> Flt
   Res[Y resonance] --> Flt
   Type[TYPE] --> Flt
   Flt --> Level[LEVEL]
