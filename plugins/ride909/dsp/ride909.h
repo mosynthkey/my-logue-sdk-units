@@ -238,6 +238,16 @@ public:
   {
     return fx::clip(kLpfACoeff - 0.18f + tone_norm_ * 0.36f, 0.28f, 0.82f);
   }
+  // First active voice's phase_inc, or 0 if none (host probes only).
+  float debugActivePhaseInc() const
+  {
+    for (uint32_t voiceIndex = 0; voiceIndex < kVoiceCount; ++voiceIndex)
+    {
+      if (voices_[voiceIndex].active)
+        return voices_[voiceIndex].phase_inc;
+    }
+    return 0.f;
+  }
 
 private:
   struct Voice

@@ -206,6 +206,70 @@ int main()
       return 14;
   }
 
+  // Live Tune: changing PITCH mid-hit must update phase_inc (knob and X share
+  // the same setParameter path once X is unipolar).
+  {
+    Ride909 live;
+    live.init(nullptr);
+    live.setParameter(Ride909::MIX, 1000);
+    live.setParameter(Ride909::PUMP, 0);
+    live.setParameter(Ride909::PITCH, 512);
+    live.setParameter(Ride909::TONE, 512);
+    live.setParameter(Ride909::DEC, 1023);
+    live.setTempo(21.f);
+    live.touchEvent(0, k_unit_touch_phase_began, 512, 0);
+    live.tempo4ppqnTick(1U);
+    live.tempo4ppqnTick(2U);
+    live.tempo4ppqnTick(3U);
+    std::vector<float> block(128U * 2U, 0.f);
+    live.process(block.data(), block.data(), 128U);
+    const float mid_inc = live.debugActivePhaseInc();
+    if (mid_inc <= 0.f)
+      return 16;
+    live.setParameter(Ride909::PITCH, 0);
+    const float low_inc = live.debugActivePhaseInc();
+    live.setParameter(Ride909::PITCH, 1023);
+    const float high_inc = live.debugActivePhaseInc();
+    std::printf("live_phase_inc mid=%.6f low=%.6f high=%.6f\n", mid_inc, low_inc, high_inc);
+    if (!(low_inc < mid_inc * 0.8f))
+      return 17;
+    if (!(high_inc > mid_inc * 1.5f))
+      return 18;
+    // Same PITCH value → same clock whether set before or after trigger.
+    Ride909 pre;
+    pre.init(nullptr);
+    pre.setParameter(Ride909::PITCH, 256);
+    pre.setParameter(Ride909::MIX, 1000);
+    pre.setTempo(21.f);
+    pre.touchEvent(0, k_unit_touch_phase_began, 256, 0);
+    pre.tempo4ppqnTick(1U);
+    pre.tempo4ppqnTick(2U);
+    pre.tempo4ppqnTick(3U);
+    pre.process(block.data(), block.data(), 128U);
+    live.setParameter(Ride909::PITCH, 256);
+    if (std::fabs(live.debugClockRatio() - pre.debugClockRatio()) > 1.0e-5f)
+      return 19;
+    if (std::fabs(live.debugActivePhaseInc() - pre.debugActivePhaseInc()) > 1.0e-6f)
+      return 20;
+  }
+
+  // Document old bipolar remap error at pad=256 (≈13¢ class mismatch).
+  {
+    const int pad = 256;
+    const int bipolar_mapped = static_cast<int>(std::round((pad / 500.f) * 512.f));
+    Ride909 uni;
+    Ride909 bip;
+    uni.init(nullptr);
+    bip.init(nullptr);
+    uni.setParameter(Ride909::PITCH, pad);
+    bip.setParameter(Ride909::PITCH, bipolar_mapped);
+    const float cents =
+        1200.f * std::log2(bip.debugClockRatio() / uni.debugClockRatio());
+    std::printf("bipolar_vs_unipolar_at_256 mapped=%d cents=%.2f\n", bipolar_mapped, cents);
+    if (std::fabs(cents) < 5.f)
+      return 21; // expect a real mismatch under the old bipolar curve
+  }
+
   std::printf("ride909_params_ok=1\n");
   return 0;
 }

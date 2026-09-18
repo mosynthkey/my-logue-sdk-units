@@ -140,7 +140,8 @@ g++ -O2 -std=c++11 $INC plugins/ride909/scripts/measure_params.cc -o /tmp/ride90
 ```
 
 `measure_params` checks: Tune ratios match R478+VR30 at panel mid (−6.12 / +9.54 st),
-center ROM clock is 35 kHz, TONE brightens the first LPF pole, and DEC shortens the late tail.
+center ROM clock is 35 kHz, TONE brightens the first LPF pole, DEC shortens the late
+tail, and mid-hit PITCH changes update active `phase_inc` (Edit knob ≡ pad X path).
 
 ## Sources
 
