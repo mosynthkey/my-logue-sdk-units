@@ -137,7 +137,7 @@ public:
     pump_hold_samples_ = 0U;
     pump_gain_ = 1.f;
     mix_ = 1.f;
-    tone_norm_ = 0.5f;
+    tone_norm_ = 1.f;
     decay_norm_ = 1.f;
     gain_mul_ = 1.f;
     bpm_ = 120.f;
@@ -462,7 +462,7 @@ private:
   float pump_gain_ = 1.f;
   uint32_t pump_hold_samples_ = 0U;
   float mix_ = 1.f;
-  float tone_norm_ = 0.5f;
+  float tone_norm_ = 1.f;
   float decay_norm_ = 1.f;
   float gain_mul_ = 1.f;
   float bpm_ = 120.f;
