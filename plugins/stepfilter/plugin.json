@@ -40,7 +40,7 @@
     {
       "name": "SMOOTH",
       "role": "Edit",
-      "detail": "Cutoff glide: 0 = instant step, max = very slow blend toward each new S&H value"
+      "detail": "Cutoff glide 0–100%: 0 = instant, 100% = linear blend over one 16th-note step at current tempo"
     },
     {
       "name": "LEVEL",

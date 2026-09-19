@@ -60,7 +60,7 @@ const __unit_header genericfx_unit_header_t unit_header = {
             {0, 1023, 0, 512, k_unit_param_type_none, 0, 0, 0, {"CUT"}},
             {0, 7, 0, 6, k_unit_param_type_strings, 0, 0, 0, {"STEPS"}},
             {0, 5, 0, 0, k_unit_param_type_strings, 0, 0, 0, {"TYPE"}},
-            {0, 1023, 0, 0, k_unit_param_type_none, 0, 0, 0, {"SMOOTH"}},
+            {0, 1000, 0, 0, k_unit_param_type_percent, 1, 1, 0, {"SMOOTH"}},
             {0, 1023, 0, 1023, k_unit_param_type_none, 0, 0, 0, {"LEVEL"}}},
     },
     .default_mappings = {
@@ -70,7 +70,7 @@ const __unit_header genericfx_unit_header_t unit_header = {
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 512},
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 7, 6},
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 5, 0},
-        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 0},
+        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1000, 0},
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 1023},
     },
 };
