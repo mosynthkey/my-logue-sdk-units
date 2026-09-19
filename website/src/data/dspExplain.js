@@ -570,7 +570,7 @@ export const dspExplainById = {
     en: "Applies a filter with tempo-synced, periodically random cutoff values. Great for adding movement to long synth-pad chord patterns.",
     ja: "テンポに同期し、周期的にランダムなCutoff値でフィルターをかけます。シンセパッドを使った長いコードのパターンに動きをつける時などにおすすめです。",
     mermaid: `flowchart LR
-  Tempo[BPM clock] --> Grid[Step period]
+  Tempo[BPM clock] --> Grid[Absolute 4ppqn grid]
   Grid --> SH[Cutoff S and H]
   SH --> CutMod[Cutoff offset]
   Depth[X depth] --> CutMod

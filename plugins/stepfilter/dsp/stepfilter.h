@@ -10,7 +10,8 @@
  * LPF24 / BPF / HPF12 / HPF24. SMOOTH (0–100%) linearly blends cutoff from
  * the previous value to the new S&H target: 0 = instant, 100% = one
  * 16th-note step at the current tempo. LEVEL scales wet before the final
- * softclip.
+ * softclip. S&H redraws lock to the host absolute 4ppqn grid (fallback:
+ * internal 16th clock from BPM when host ticks are absent).
  */
 
 #include "fx_dsp.h"
@@ -126,13 +127,16 @@ public:
     level_ = 1.f;
     period_sel_ = PERIOD_1STEP;
     type_sel_ = TYPE_PEAK;
-    clock_acc_ = 0.f;
     hold_bipolar_ = 0.f;
     cutoff_from_hz_ = baseCutoffHz(0.5f);
     cutoff_hz_smooth_ = cutoff_from_hz_;
     smooth_phase_ = 1.f;
+    tick_counter_ = 0U;
+    internal_tick_phase_ = 0.f;
+    half_step_samples_left_ = -1;
     rng_ = 0xA5F15237U;
     pad_held_ = false;
+    use_host_clock_ = false;
     resetSvf();
   }
 
@@ -141,11 +145,11 @@ public:
     depth_smooth_ = depth_target_;
     resonance_norm_smooth_ = resonance_norm_target_;
     cutoff_norm_smooth_ = cutoff_norm_target_;
-    clock_acc_ = 0.f;
     hold_bipolar_ = 0.f;
     cutoff_from_hz_ = baseCutoffHz(cutoff_norm_smooth_);
     cutoff_hz_smooth_ = cutoff_from_hz_;
     smooth_phase_ = 1.f;
+    half_step_samples_left_ = -1;
     pad_held_ = false;
     resetSvf();
   }
@@ -156,13 +160,19 @@ public:
       bpm_ = tempo;
   }
 
+  void tempo4ppqnTick(uint32_t counter) override final
+  {
+    use_host_clock_ = true;
+    onSixteenthTick(counter);
+  }
+
   void touchEvent(uint8_t, uint8_t phase, uint32_t, uint32_t) override final
   {
     if (phase == k_unit_touch_phase_began)
     {
       pad_held_ = true;
-      clock_acc_ = 0.f;
       resetSvf();
+      // Engage immediately; subsequent S&H redraws follow the absolute grid.
       sampleHold(/*snap=*/true);
       return;
     }
@@ -174,6 +184,7 @@ public:
     if (phase == k_unit_touch_phase_ended || phase == k_unit_touch_phase_cancelled)
     {
       pad_held_ = false;
+      half_step_samples_left_ = -1;
       resetSvf();
     }
   }
@@ -187,7 +198,6 @@ public:
   {
     const float sr = getSampleRate();
     const float beat = static_cast<float>(fx::samplesPerBeat(bpm_, sr));
-    const float period_samples = beat * 0.25f * periodSixteenths(period_sel_);
     // 100% SMOOTH = one 16th-note step duration from the current tempo.
     const float one_step_samples = beat * 0.25f;
     const float glide_samples = smooth_norm_ * one_step_samples;
@@ -195,6 +205,10 @@ public:
 
     for (uint32_t sampleIndex = 0; sampleIndex < frames; ++sampleIndex)
     {
+      if (!use_host_clock_)
+        advanceInternalClockOneSample();
+      advanceHalfStepArm();
+
       float live_left = 0.f;
       float live_right = 0.f;
       fx::pickLive(in, raw, live_left, live_right);
@@ -213,13 +227,6 @@ public:
       depth_smooth_ += (depth_target_ - depth_smooth_) * kParamSmoothCoeff;
       resonance_norm_smooth_ += (resonance_norm_target_ - resonance_norm_smooth_) * kParamSmoothCoeff;
       cutoff_norm_smooth_ += (cutoff_norm_target_ - cutoff_norm_smooth_) * kParamSmoothCoeff;
-
-      clock_acc_ += 1.f;
-      if (clock_acc_ >= period_samples)
-      {
-        clock_acc_ -= period_samples;
-        sampleHold(/*snap=*/false);
-      }
 
       const float target_hz = modulatedCutoffHz(cutoff_norm_smooth_, depth_smooth_, hold_bipolar_);
       if (smooth_norm_ <= 0.f || glide_inc >= 1.f)
@@ -276,6 +283,61 @@ private:
     svf_left_b_ = SvfState();
     svf_right_a_ = SvfState();
     svf_right_b_ = SvfState();
+  }
+
+  void onSixteenthTick(uint32_t counter)
+  {
+    tick_counter_ = counter;
+    if (!pad_held_)
+    {
+      half_step_samples_left_ = -1;
+      return;
+    }
+
+    const float period = periodSixteenths(period_sel_);
+    if (period < 1.f)
+    {
+      // PERIOD_HALF: fire on each 16th and arm a mid-16th (32nd) redraw.
+      sampleHold(/*snap=*/false);
+      const float beat = static_cast<float>(fx::samplesPerBeat(bpm_, getSampleRate()));
+      half_step_samples_left_ = static_cast<int32_t>(beat * 0.125f);
+      return;
+    }
+
+    const uint32_t period_ticks = static_cast<uint32_t>(period + 0.5f);
+    if (period_ticks == 0U)
+      return;
+    const uint32_t step_index = (counter == 0U) ? 0U : (counter - 1U);
+    if ((step_index % period_ticks) == 0U)
+      sampleHold(/*snap=*/false);
+  }
+
+  void advanceInternalClockOneSample()
+  {
+    const float beat = static_cast<float>(fx::samplesPerBeat(bpm_, getSampleRate()));
+    const float samples_per_tick = beat * 0.25f;
+    if (samples_per_tick <= 0.f)
+      return;
+    internal_tick_phase_ += 1.f;
+    if (internal_tick_phase_ >= samples_per_tick)
+    {
+      internal_tick_phase_ -= samples_per_tick;
+      ++tick_counter_;
+      onSixteenthTick(tick_counter_);
+    }
+  }
+
+  void advanceHalfStepArm()
+  {
+    if (half_step_samples_left_ < 0)
+      return;
+    --half_step_samples_left_;
+    if (half_step_samples_left_ == 0)
+    {
+      half_step_samples_left_ = -1;
+      if (pad_held_)
+        sampleHold(/*snap=*/false);
+    }
   }
 
   void sampleHold(bool snap)
@@ -399,7 +461,6 @@ private:
     return output;
   }
 
-  float clock_acc_ = 0.f;
   float hold_bipolar_ = 0.f;
   float cutoff_from_hz_ = 1000.f;
   float cutoff_hz_smooth_ = 1000.f;
@@ -414,10 +475,14 @@ private:
   float smooth_norm_ = 0.f;
   float mix_ = 1.f;
   float level_ = 1.f;
+  float internal_tick_phase_ = 0.f;
   uint32_t rng_ = 0xA5F15237U;
+  uint32_t tick_counter_ = 0U;
+  int32_t half_step_samples_left_ = -1;
   uint8_t period_sel_ = PERIOD_1STEP;
   uint8_t type_sel_ = TYPE_PEAK;
   bool pad_held_ = false;
+  bool use_host_clock_ = false;
   SvfState svf_left_a_;
   SvfState svf_left_b_;
   SvfState svf_right_a_;

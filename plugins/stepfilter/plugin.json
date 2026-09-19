@@ -30,7 +30,7 @@
     {
       "name": "STEPS",
       "role": "Edit",
-      "detail": "S&H period: 4Bar, 2Bar, 16St, 8St, 4St, 2St, 1St, 1/2"
+      "detail": "Absolute-grid S&H period: 4Bar, 2Bar, 16St, 8St, 4St, 2St, 1St, 1/2"
     },
     {
       "name": "TYPE",
