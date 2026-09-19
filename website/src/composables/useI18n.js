@@ -13,7 +13,7 @@ export const japanesePluginDescriptions = {
   hypersaw: "Virus TIに着想を得た9-voice detuned saw stackです。Density、Spread、HyperSub、stereo widthを調整できます。",
   kaocid: "XY Padで演奏する303系のシンセです。Tapで16ステップのフレーズを生成（位置はCUT/RESのみ、フレーズ種は連打で進みます）。\n現在も調整中で、正式版\u2060は近日公開予定。",
   loopkey: "keyboardで操作するmicro-looper oscillatorです。external audio inputをloopし、MIDI noteでloop lengthを設定します。Tempo sync、gate mode、evolutionに対応します。",
-  ride909: "テクノでよく聞く、裏打ちの909 Ride Cymbalを再生します。ピッチを変更することができます。\n現在も調整中で、正式版\u2060は近日公開予定。",
+  ride909: "テクノでよく聞く、裏打ちの909 Ride Cymbalを再生します。クロック同期し、Step 1再生のタイミングでPadを押すとちょうど裏打ちのRide Cymbalが再生されます。ピッチやSide Chainがかかったような効果を設定できます。",
   shaker: "PhISEM shakerの移植です。XY Pad / 鍵盤でさまざまなパーカッションを演奏できます。\n現在も調整中で、正式版\u2060は近日公開予定。",
   technorumble: "Techno rumble kick processorです。長いreverb tail、sub LPF、drive、kick transientに反応するsidechain duckを1ユニットにまとめています。NTS-3はAUDIO IN、mkIIはsynth出力にkickを入れて使います。X/TIME = decay、Y/DEPTH = cutoff、Depth/MIX = dry/wetです。",
   tapeosc: "tape motorのstart/stopを再現するVarispeed oscillatorです。band-limited synth waveformがpitch envelopeではなく、tape deckのように減速してfreezeします。",
