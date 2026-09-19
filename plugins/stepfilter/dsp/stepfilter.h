@@ -7,9 +7,10 @@
  * multimode resonant TPT SVF). Dry by default; touch engages. Each grid
  * period redraws a random bipolar offset around CUT; DEPTH scales that
  * offset in octaves. Y is resonance (capped). TYPE picks Peak / LPF12 /
- * LPF24 / BPF / HPF12 / HPF24. SMOOTH glides cutoff Hz toward each new
- * S&H target (0 = instant step, max = very slow one-pole toward the new
- * value). LEVEL scales wet before the final softclip.
+ * LPF24 / BPF / HPF12 / HPF24. SMOOTH (0–100%) linearly blends cutoff from
+ * the previous value to the new S&H target: 0 = instant, 100% = one
+ * 16th-note step at the current tempo. LEVEL scales wet before the final
+ * softclip.
  */
 
 #include "fx_dsp.h"
@@ -27,8 +28,6 @@ public:
   static constexpr float kMaxDepthOctaves = 5.f;
   static constexpr float kMaxResonanceNorm = 0.8f;
   static constexpr float kParamSmoothCoeff = 0.0025f;
-  // Max one-pole time constant when SMOOTH is fully open (~0.5 s to ~63%).
-  static constexpr float kMaxSmoothSec = 0.5f;
   static constexpr uint8_t kNumPeriods = 8U;
   static constexpr uint8_t kNumTypes = 6U;
 
@@ -92,7 +91,7 @@ public:
       type_sel_ = static_cast<uint8_t>(fx::clip(static_cast<float>(value), 0.f, static_cast<float>(kNumTypes - 1U)));
       break;
     case SMOOTH:
-      smooth_norm_ = param_10bit_to_f32(value);
+      smooth_norm_ = fx::clip01(value / 1000.f);
       break;
     case LEVEL:
       level_ = param_10bit_to_f32(value);
@@ -129,7 +128,9 @@ public:
     type_sel_ = TYPE_PEAK;
     clock_acc_ = 0.f;
     hold_bipolar_ = 0.f;
-    cutoff_hz_smooth_ = baseCutoffHz(0.5f);
+    cutoff_from_hz_ = baseCutoffHz(0.5f);
+    cutoff_hz_smooth_ = cutoff_from_hz_;
+    smooth_phase_ = 1.f;
     rng_ = 0xA5F15237U;
     pad_held_ = false;
     resetSvf();
@@ -142,7 +143,9 @@ public:
     cutoff_norm_smooth_ = cutoff_norm_target_;
     clock_acc_ = 0.f;
     hold_bipolar_ = 0.f;
-    cutoff_hz_smooth_ = baseCutoffHz(cutoff_norm_smooth_);
+    cutoff_from_hz_ = baseCutoffHz(cutoff_norm_smooth_);
+    cutoff_hz_smooth_ = cutoff_from_hz_;
+    smooth_phase_ = 1.f;
     pad_held_ = false;
     resetSvf();
   }
@@ -160,7 +163,7 @@ public:
       pad_held_ = true;
       clock_acc_ = 0.f;
       resetSvf();
-      sampleHold();
+      sampleHold(/*snap=*/true);
       return;
     }
     if (phase == k_unit_touch_phase_moved || phase == k_unit_touch_phase_stationary)
@@ -185,13 +188,10 @@ public:
     const float sr = getSampleRate();
     const float beat = static_cast<float>(fx::samplesPerBeat(bpm_, sr));
     const float period_samples = beat * 0.25f * periodSixteenths(period_sel_);
-    // SMOOTH 0 = snap; higher = longer one-pole tau (quadratic toward kMaxSmoothSec).
-    float cutoff_alpha = 1.f;
-    if (smooth_norm_ > 0.f)
-    {
-      const float smooth_sec = smooth_norm_ * smooth_norm_ * kMaxSmoothSec;
-      cutoff_alpha = fx::clip(1.f / (smooth_sec * sr), 0.f, 1.f);
-    }
+    // 100% SMOOTH = one 16th-note step duration from the current tempo.
+    const float one_step_samples = beat * 0.25f;
+    const float glide_samples = smooth_norm_ * one_step_samples;
+    const float glide_inc = (glide_samples > 1.f) ? (1.f / glide_samples) : 1.f;
 
     for (uint32_t sampleIndex = 0; sampleIndex < frames; ++sampleIndex)
     {
@@ -218,14 +218,32 @@ public:
       if (clock_acc_ >= period_samples)
       {
         clock_acc_ -= period_samples;
-        sampleHold();
+        sampleHold(/*snap=*/false);
       }
 
       const float target_hz = modulatedCutoffHz(cutoff_norm_smooth_, depth_smooth_, hold_bipolar_);
-      if (cutoff_alpha >= 1.f)
+      if (smooth_norm_ <= 0.f || glide_inc >= 1.f)
+      {
         cutoff_hz_smooth_ = target_hz;
+        smooth_phase_ = 1.f;
+      }
+      else if (smooth_phase_ < 1.f)
+      {
+        smooth_phase_ += glide_inc;
+        if (smooth_phase_ >= 1.f)
+        {
+          smooth_phase_ = 1.f;
+          cutoff_hz_smooth_ = target_hz;
+        }
+        else
+        {
+          cutoff_hz_smooth_ = cutoff_from_hz_ + (target_hz - cutoff_from_hz_) * smooth_phase_;
+        }
+      }
       else
-        cutoff_hz_smooth_ += (target_hz - cutoff_hz_smooth_) * cutoff_alpha;
+      {
+        cutoff_hz_smooth_ = target_hz;
+      }
 
       const float filtered_left =
           processFilter(live_left, cutoff_hz_smooth_, resonance_norm_smooth_, type_sel_, svf_left_a_, svf_left_b_);
@@ -260,9 +278,21 @@ private:
     svf_right_b_ = SvfState();
   }
 
-  void sampleHold()
+  void sampleHold(bool snap)
   {
+    cutoff_from_hz_ = cutoff_hz_smooth_;
     hold_bipolar_ = fx::randomFloat(rng_) * 2.f - 1.f;
+    if (snap || smooth_norm_ <= 0.f)
+    {
+      const float target_hz = modulatedCutoffHz(cutoff_norm_smooth_, depth_smooth_, hold_bipolar_);
+      cutoff_from_hz_ = target_hz;
+      cutoff_hz_smooth_ = target_hz;
+      smooth_phase_ = 1.f;
+    }
+    else
+    {
+      smooth_phase_ = 0.f;
+    }
   }
 
   static float periodSixteenths(uint8_t period_sel)
@@ -371,7 +401,9 @@ private:
 
   float clock_acc_ = 0.f;
   float hold_bipolar_ = 0.f;
+  float cutoff_from_hz_ = 1000.f;
   float cutoff_hz_smooth_ = 1000.f;
+  float smooth_phase_ = 1.f;
   float bpm_ = 120.f;
   float depth_target_ = 0.55f;
   float depth_smooth_ = 0.55f;
@@ -379,7 +411,7 @@ private:
   float resonance_norm_smooth_ = 0.45f * kMaxResonanceNorm;
   float cutoff_norm_target_ = 0.5f;
   float cutoff_norm_smooth_ = 0.5f;
-  float smooth_norm_ = 0.15f;
+  float smooth_norm_ = 0.f;
   float mix_ = 1.f;
   float level_ = 1.f;
   uint32_t rng_ = 0xA5F15237U;
