@@ -7,9 +7,9 @@
  *
  * Always records AUDIO IN; touch freezes and granulates.
  * X/FEEL: left = sparse stitches; right = dense multi-grain wash.
- * Y = octave mix (0 / +1 / +2). ENV = seam overlap in steps (fade beyond each body).
- * STEPS sets body length and trigger grid (StepFilter-style 4ppqn).
- * SPRD = stereo width. MODE: Volume (gain mix) or Freq (dry LPF + wet HPF).
+ * Y = octave mix (0 / +1 / +2). MIX (Depth) blends live input with grains.
+ * MODE: Volume (gain) or Freq (dry LPF + wet HPF). STEPS = body/grid; ENV = seam.
+ * SPRD = stereo width. REVS = reverse probability.
  * Prefers get_raw_input while pad up.
  */
 
@@ -40,10 +40,10 @@ public:
     FEEL = 0U,
     OCT,
     MIX,
-    ENV,
-    STEPS,
-    SPRD,
     MODE,
+    STEPS,
+    ENV,
+    SPRD,
     REVS,
     NUM_PARAMS
   };
@@ -96,15 +96,21 @@ public:
         mix_ = 1.f;
       updateCrossoverCoeff();
       break;
-    case ENV:
+    case MODE:
       // strings type parameter, receiving index value
-      seam_sel_ = static_cast<uint8_t>(
-          fx::clip(static_cast<float>(value), 0.f, static_cast<float>(kNumSeams - 1U)));
+      mode_sel_ = static_cast<uint8_t>(
+          fx::clip(static_cast<float>(value), 0.f, static_cast<float>(kNumModes - 1U)));
+      updateCrossoverCoeff();
       break;
     case STEPS:
       // strings type parameter, receiving index value
       period_sel_ = static_cast<uint8_t>(
           fx::clip(static_cast<float>(value), 0.f, static_cast<float>(kNumPeriods - 1U)));
+      break;
+    case ENV:
+      // strings type parameter, receiving index value
+      seam_sel_ = static_cast<uint8_t>(
+          fx::clip(static_cast<float>(value), 0.f, static_cast<float>(kNumSeams - 1U)));
       break;
     case SPRD:
       sprd_norm_ = value / 100.f;
@@ -112,12 +118,6 @@ public:
         sprd_norm_ = 0.f;
       if (sprd_norm_ > 1.f)
         sprd_norm_ = 1.f;
-      break;
-    case MODE:
-      // strings type parameter, receiving index value
-      mode_sel_ = static_cast<uint8_t>(
-          fx::clip(static_cast<float>(value), 0.f, static_cast<float>(kNumModes - 1U)));
-      updateCrossoverCoeff();
       break;
     case REVS:
       revs_norm_ = value / 100.f;
@@ -163,17 +163,17 @@ public:
 
     switch (index)
     {
-    case ENV:
-      if (value >= SEAM_OFF && value < static_cast<int32_t>(kNumSeams))
-        return env_strings[value];
+    case MODE:
+      if (value >= MODE_VOLUME && value < static_cast<int32_t>(kNumModes))
+        return mode_strings[value];
       break;
     case STEPS:
       if (value >= PERIOD_4BAR && value < static_cast<int32_t>(kNumPeriods))
         return steps_strings[value];
       break;
-    case MODE:
-      if (value >= MODE_VOLUME && value < static_cast<int32_t>(kNumModes))
-        return mode_strings[value];
+    case ENV:
+      if (value >= SEAM_OFF && value < static_cast<int32_t>(kNumSeams))
+        return env_strings[value];
       break;
     default:
       break;

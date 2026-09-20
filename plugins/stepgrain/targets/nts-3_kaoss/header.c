@@ -3,6 +3,8 @@
  *
  * NTS-3 kaoss pad kit generic effect unit header for StepGrain
  * (string params follow dummy-genericfx layout)
+ *
+ * Order: X / Y / Depth / Edit… — MODE sits next to MIX; STEPS before ENV.
  */
 
 #include "unit_genericfx.h"
@@ -30,11 +32,11 @@ const __unit_header genericfx_unit_header_t unit_header = {
             {0, 100, 0, 100, k_unit_param_type_percent, 0, 0, 0, {"MIX"}},
 
             // Strings type parameters (same pattern as dummy-genericfx PARAM4)
-            {0, 6, 0, 2, k_unit_param_type_strings, 0, 0, 0, {"ENV"}},
+            {0, 1, 0, 0, k_unit_param_type_strings, 0, 0, 0, {"MODE"}},
             {0, 7, 0, 6, k_unit_param_type_strings, 0, 0, 0, {"STEPS"}},
+            {0, 6, 0, 2, k_unit_param_type_strings, 0, 0, 0, {"ENV"}},
 
             {0, 100, 0, 100, k_unit_param_type_percent, 0, 0, 0, {"SPRD"}},
-            {0, 1, 0, 0, k_unit_param_type_strings, 0, 0, 0, {"MODE"}},
             {0, 100, 0, 50, k_unit_param_type_percent, 0, 0, 0, {"REVS"}},
         },
     },
@@ -43,14 +45,14 @@ const __unit_header genericfx_unit_header_t unit_header = {
 
         {k_genericfx_param_assign_x, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 1023},
         {k_genericfx_param_assign_y, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 512},
-        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 100, 100},
+        // MIX = Depth (live vs grains)
+        {k_genericfx_param_assign_depth, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 100, 100},
 
-        // ENV / STEPS / MODE: fixed (Edit) string params
-        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 6, 2},
-        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 7, 6},
-
-        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 100, 100},
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1, 0},
+        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 7, 6},
+        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 6, 2},
+
+        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 100, 100},
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 100, 50},
     },
 };
