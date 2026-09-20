@@ -23,7 +23,7 @@ class StepGrain : public Processor
 public:
   static constexpr uint32_t kMaxCaptureSamples = 144000U;
   static constexpr uint32_t kMinCaptureSamples = 2048U;
-  static constexpr uint32_t kMaxGrains = 48U;
+  static constexpr uint32_t kMaxGrains = 24U;
   static constexpr float kMinBpm = 40.f;
   static constexpr float kMaxBpm = 300.f;
   static constexpr float kMinCapturePeak = 0.003f;
@@ -95,14 +95,22 @@ public:
           fx::clip(static_cast<float>(value), 0.f, static_cast<float>(kNumPeriods - 1U)));
       break;
     case SPRD:
-      sprd_norm_ = param10BitToNorm(value);
+      sprd_norm_ = value / 1000.f;
+      if (sprd_norm_ < 0.f)
+        sprd_norm_ = 0.f;
+      if (sprd_norm_ > 1.f)
+        sprd_norm_ = 1.f;
       break;
     case HPF:
       hpf_norm_ = param10BitToNorm(value);
       updateHpfCoeff();
       break;
     case REVS:
-      revs_norm_ = param10BitToNorm(value);
+      revs_norm_ = value / 1000.f;
+      if (revs_norm_ < 0.f)
+        revs_norm_ = 0.f;
+      if (revs_norm_ > 1.f)
+        revs_norm_ = 1.f;
       break;
     default:
       break;
@@ -111,8 +119,9 @@ public:
 
   const char *getParameterStrValue(uint8_t index, int32_t value) const override final
   {
-    static const char *period_names[kNumPeriods] = {"4Bar", "2Bar", "16St", "8St", "4St", "2St", "1St", "1/2"};
-    static const char *seam_names[kNumSeams] = {"Off", "1/2", "1St", "2St", "4St", "8St", "16St"};
+    // NTS-3 string charset: A-Z a-z 0-9 space - _  (no '/')
+    static const char *period_names[kNumPeriods] = {"4Bar", "2Bar", "16St", "8St", "4St", "2St", "1St", "Half"};
+    static const char *seam_names[kNumSeams] = {"Off", "Half", "1St", "2St", "4St", "8St", "16St"};
     if (index == STEPS && value >= 0 && value < static_cast<int32_t>(kNumPeriods))
       return period_names[value];
     if (index == ENV && value >= 0 && value < static_cast<int32_t>(kNumSeams))
@@ -133,9 +142,9 @@ public:
     mix_ = 1.f;
     seam_sel_ = SEAM_1STEP;
     period_sel_ = PERIOD_1STEP;
-    sprd_norm_ = 0.35f;
-    hpf_norm_ = 0.15f;
-    revs_norm_ = 0.f;
+    sprd_norm_ = 1.f;
+    hpf_norm_ = 0.f;
+    revs_norm_ = 0.5f;
     bpm_ = 120.f;
     capture_length_ = kMaxCaptureSamples;
     updateHpfCoeff();
@@ -753,9 +762,9 @@ private:
   float feel_norm_ = 1.f;
   float oct_norm_ = 0.5f;
   float mix_ = 1.f;
-  float sprd_norm_ = 0.35f;
-  float hpf_norm_ = 0.15f;
-  float revs_norm_ = 0.f;
+  float sprd_norm_ = 1.f;
+  float hpf_norm_ = 0.f;
+  float revs_norm_ = 0.5f;
   uint8_t period_sel_ = PERIOD_1STEP;
   uint8_t seam_sel_ = SEAM_1STEP;
   float bpm_ = 120.f;

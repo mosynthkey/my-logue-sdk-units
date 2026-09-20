@@ -15,9 +15,9 @@ int main()
   fx.setParameter(StepGrain::OCT, 700);
   fx.setParameter(StepGrain::ENV, StepGrain::SEAM_1STEP);
   fx.setParameter(StepGrain::STEPS, StepGrain::PERIOD_1STEP);
-  fx.setParameter(StepGrain::SPRD, 700);
-  fx.setParameter(StepGrain::HPF, 200);
-  fx.setParameter(StepGrain::REVS, 200);
+  fx.setParameter(StepGrain::SPRD, 1000);
+  fx.setParameter(StepGrain::HPF, 0);
+  fx.setParameter(StepGrain::REVS, 500);
 
   std::vector<float> input(kFrames * 2U, 0.f);
   std::vector<float> output(kFrames * 2U, 0.f);
