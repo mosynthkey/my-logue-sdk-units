@@ -9,7 +9,8 @@
  * X/FEEL: left = sparse stitches; right = dense multi-grain wash.
  * Y = octave mix (0 / +1 / +2). ENV = seam overlap in steps (fade beyond each body).
  * STEPS sets body length and trigger grid (StepFilter-style 4ppqn).
- * SPRD = stereo width. HPF = wet high-pass. Prefers get_raw_input while pad up.
+ * SPRD = stereo width. MODE: Volume (gain mix) or Freq (dry LPF + wet HPF).
+ * Prefers get_raw_input while pad up.
  */
 
 #include "fx_dsp.h"
@@ -30,6 +31,7 @@ public:
   static constexpr float kTwoPi = 6.283185307179586f;
   static constexpr uint8_t kNumPeriods = 8U;
   static constexpr uint8_t kNumSeams = 7U;
+  static constexpr uint8_t kNumModes = 2U;
 
   uint32_t getBufferSize() const override final { return kMaxCaptureSamples * 2U; }
 
@@ -41,7 +43,7 @@ public:
     ENV,
     STEPS,
     SPRD,
-    HPF,
+    MODE,
     REVS,
     NUM_PARAMS
   };
@@ -69,6 +71,12 @@ public:
     SEAM_16STEP
   };
 
+  enum
+  {
+    MODE_VOLUME = 0U,
+    MODE_FREQ
+  };
+
   // Match dummy-genericfx: inline set/get + switch for string params.
   inline void setParameter(uint8_t index, int32_t value) override final
   {
@@ -86,6 +94,7 @@ public:
         mix_ = 0.f;
       if (mix_ > 1.f)
         mix_ = 1.f;
+      updateCrossoverCoeff();
       break;
     case ENV:
       // strings type parameter, receiving index value
@@ -104,9 +113,11 @@ public:
       if (sprd_norm_ > 1.f)
         sprd_norm_ = 1.f;
       break;
-    case HPF:
-      hpf_norm_ = param10BitToNorm(value);
-      updateHpfCoeff();
+    case MODE:
+      // strings type parameter, receiving index value
+      mode_sel_ = static_cast<uint8_t>(
+          fx::clip(static_cast<float>(value), 0.f, static_cast<float>(kNumModes - 1U)));
+      updateCrossoverCoeff();
       break;
     case REVS:
       revs_norm_ = value / 100.f;
@@ -145,6 +156,10 @@ public:
         "1 St",
         "Half",
     };
+    static const char *mode_strings[kNumModes] = {
+        "Volume",
+        "Freq",
+    };
 
     switch (index)
     {
@@ -155,6 +170,10 @@ public:
     case STEPS:
       if (value >= PERIOD_4BAR && value < static_cast<int32_t>(kNumPeriods))
         return steps_strings[value];
+      break;
+    case MODE:
+      if (value >= MODE_VOLUME && value < static_cast<int32_t>(kNumModes))
+        return mode_strings[value];
       break;
     default:
       break;
@@ -177,11 +196,11 @@ public:
     seam_sel_ = SEAM_1STEP;
     period_sel_ = PERIOD_1STEP;
     sprd_norm_ = 1.f;
-    hpf_norm_ = 0.f;
+    mode_sel_ = MODE_VOLUME;
     revs_norm_ = 0.5f;
     bpm_ = 120.f;
     capture_length_ = kMaxCaptureSamples;
-    updateHpfCoeff();
+    updateCrossoverCoeff();
     reset();
   }
 
@@ -209,8 +228,10 @@ public:
     half_step_samples_left_ = -1;
     use_host_clock_ = false;
     rng_state_ = 0xC0FFEE01U;
-    hpf_state_left_ = 0.f;
-    hpf_state_right_ = 0.f;
+    dry_lpf_left_ = 0.f;
+    dry_lpf_right_ = 0.f;
+    wet_lpf_left_ = 0.f;
+    wet_lpf_right_ = 0.f;
     clearGrains();
   }
 
@@ -317,15 +338,22 @@ public:
       float grain_left = 0.f;
       float grain_right = 0.f;
       if (wet_ > 0.f && frozen_)
-      {
         renderGrains(grain_left, grain_right);
-        applyHpf(grain_left, grain_right);
-      }
 
       if (wet_ <= 0.f)
       {
         out[0] = live_left;
         out[1] = live_right;
+      }
+      else if (mode_sel_ == MODE_FREQ)
+      {
+        // Complementary crossover: dry = LPF(input), wet = HPF(grains), then sum.
+        dry_lpf_left_ += xo_coeff_ * (live_left - dry_lpf_left_);
+        dry_lpf_right_ += xo_coeff_ * (live_right - dry_lpf_right_);
+        wet_lpf_left_ += xo_coeff_ * (grain_left - wet_lpf_left_);
+        wet_lpf_right_ += xo_coeff_ * (grain_right - wet_lpf_right_);
+        out[0] = dry_lpf_left_ + (grain_left - wet_lpf_left_);
+        out[1] = dry_lpf_right_ + (grain_right - wet_lpf_right_);
       }
       else
       {
@@ -482,19 +510,12 @@ private:
     return static_cast<uint32_t>(samples + 0.5f);
   }
 
-  void updateHpfCoeff()
+  // MIX maps crossover Hz: 0% → open (~10 kHz, mostly dry), 100% → low (~60 Hz, mostly wet).
+  void updateCrossoverCoeff()
   {
-    const float hz = 60.f * fasterpowf(10000.f / 60.f, clamp01(hpf_norm_));
+    const float hz = 60.f * fasterpowf(10000.f / 60.f, 1.f - clamp01(mix_));
     const float x = -kTwoPi * hz / getSampleRate();
-    hpf_coeff_ = (-x < 0.08f) ? -x : (1.f - fasterexpf(x));
-  }
-
-  void applyHpf(float &left, float &right)
-  {
-    hpf_state_left_ += hpf_coeff_ * (left - hpf_state_left_);
-    hpf_state_right_ += hpf_coeff_ * (right - hpf_state_right_);
-    left -= hpf_state_left_;
-    right -= hpf_state_right_;
+    xo_coeff_ = (-x < 0.08f) ? -x : (1.f - fasterexpf(x));
   }
 
   void freezeCapture()
@@ -797,10 +818,10 @@ private:
   float oct_norm_ = 0.5f;
   float mix_ = 1.f;
   float sprd_norm_ = 1.f;
-  float hpf_norm_ = 0.f;
   float revs_norm_ = 0.5f;
   uint8_t period_sel_ = PERIOD_1STEP;
   uint8_t seam_sel_ = SEAM_1STEP;
+  uint8_t mode_sel_ = MODE_VOLUME;
   float bpm_ = 120.f;
 
   uint32_t write_pos_ = 0U;
@@ -823,7 +844,9 @@ private:
   uint32_t rng_state_ = 0xC0FFEE01U;
   Grain grains_[kMaxGrains];
 
-  float hpf_coeff_ = 0.05f;
-  float hpf_state_left_ = 0.f;
-  float hpf_state_right_ = 0.f;
+  float xo_coeff_ = 0.05f;
+  float dry_lpf_left_ = 0.f;
+  float dry_lpf_right_ = 0.f;
+  float wet_lpf_left_ = 0.f;
+  float wet_lpf_right_ = 0.f;
 };

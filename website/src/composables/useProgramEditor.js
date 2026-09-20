@@ -38,7 +38,7 @@ const DEFAULT_PARAM_NAMES = [
   "ENV",
   "STEPS",
   "SPRD",
-  "HPF",
+  "MODE",
   "REVS",
 ];
 
