@@ -1,7 +1,7 @@
 /*
  * File: header.c
  *
- * NTS-3 generic effect unit header for GrainPad
+ * NTS-3 generic effect unit header for StepGrain
  */
 
 #include "unit_genericfx.h"
@@ -15,7 +15,7 @@ const __unit_header genericfx_unit_header_t unit_header = {
         .dev_id = MLSA_DEV_ID,
         .unit_id = 0x0000000CU,
         .version = MLSA_VERSION_EXPERIMENTAL,
-        .name = "GrainPad",
+        .name = "StepGrain",
         .num_params = 8,
         .params = {
             {0, 1023, 0, 1023, k_unit_param_type_none, 0, 0, 0, {"FEEL"}},

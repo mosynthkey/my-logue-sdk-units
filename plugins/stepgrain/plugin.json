@@ -1,7 +1,7 @@
 {
-  "id": "grainpad",
+  "id": "stepgrain",
   "experimental": true,
-  "name": "GrainPad",
+  "name": "StepGrain",
   "type": "fx",
   "targets": ["nts-3_kaoss"],
   "description": "Live-capture granular pad for NTS-3. Touch freezes up to 3 s of AUDIO IN into a tempo-synced grain cloud. X/FEEL: sparse ↔ dense. Y = octave mix (0 / +1 / +2). ENV = seam overlap in steps. STEPS = body length & trigger grid. SPRD / HPF / REVS. MIX = dry/wet.",

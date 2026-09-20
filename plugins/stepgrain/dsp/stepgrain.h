@@ -1,7 +1,7 @@
 #pragma once
 
 /*
- * File: grainpad.h
+ * File: stepgrain.h
  *
  * Live capture granular pad for NTS-3.
  *
@@ -18,7 +18,7 @@
 #include "utils/float_math.h"
 #include <stdint.h>
 
-class GrainPad : public Processor
+class StepGrain : public Processor
 {
 public:
   static constexpr uint32_t kMaxCaptureSamples = 144000U;

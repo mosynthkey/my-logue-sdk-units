@@ -7,7 +7,7 @@
 using namespace emscripten;
 
 #include "unit_genericfx.h"
-#include "grainpad.h"
+#include "stepgrain.h"
 
 // this needs to be big enough for the stereo output, inputs, params and the worker stack
 uint8_t audioThreadStack[4096];
@@ -18,7 +18,7 @@ std::vector<float> ram;
 std::array<float, WEB_AUDIO_FRAME_SIZE * 2> interleavedIn;
 std::array<float, WEB_AUDIO_FRAME_SIZE * 2> interleavedOut;
 
-GrainPad processor;
+StepGrain processor;
 extern const genericfx_unit_header_t unit_header;
 
 static float BPM_WASM = 120.f;
