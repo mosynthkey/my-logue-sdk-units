@@ -9,10 +9,10 @@
     { "name": "FEEL", "role": "X", "detail": "Left: sparse one-grain stitches. Right: dense multi-grain wash" },
     { "name": "OCT", "role": "Y", "detail": "Mixture of unison / +1 / +2 octave grains" },
     { "name": "MIX", "role": "Edit", "detail": "0 = dry only, max = granular only" },
-    { "name": "ENV", "role": "Edit", "detail": "Fade-in/out seam beyond each STEPS body: Off, 1/2, 1St, 2St, 4St, 8St, 16St" },
-    { "name": "STEPS", "role": "Edit", "detail": "Grain body length and trigger grid: 4Bar, 2Bar, 16St, 8St, 4St, 2St, 1St, 1/2" },
-    { "name": "SPRD", "role": "Edit", "detail": "Random stereo width (0 = mono, max = hard L/R)" },
+    { "name": "ENV", "role": "Edit", "detail": "Fade-in/out seam beyond each STEPS body: Off, Half, 1St, 2St, 4St, 8St, 16St" },
+    { "name": "STEPS", "role": "Edit", "detail": "Grain body length and trigger grid: 4Bar, 2Bar, 16St, 8St, 4St, 2St, 1St, Half" },
+    { "name": "SPRD", "role": "Edit", "detail": "Random stereo width (0% = mono, 100% = hard L/R)" },
     { "name": "HPF", "role": "Edit", "detail": "High-pass on the granular wet path (~60 Hz–10 kHz)" },
-    { "name": "REVS", "role": "Edit", "detail": "Probability that a grain plays in reverse" }
+    { "name": "REVS", "role": "Edit", "detail": "Probability that a grain plays in reverse (0–100%)" }
   ]
 }
