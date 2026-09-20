@@ -42,6 +42,18 @@ const DEFAULT_PARAM_NAMES = [
   "REVS",
 ];
 
+// Mirrors plugins/stepgrain/targets/nts-3_kaoss/header.c defaults.
+const STEP_GRAIN_PARAM_DEFAULTS = {
+  FEEL: { assign: "X", value: 1023, min: 0, max: 1023 },
+  OCT: { assign: "Y", value: 512, min: 0, max: 1023 },
+  MIX: { assign: "DEPTH", value: 100, min: 0, max: 100 },
+  MODE: { assign: "NONE", value: 0, min: 0, max: 1 },
+  STEPS: { assign: "NONE", value: 6, min: 0, max: 7 },
+  ENV: { assign: "NONE", value: 2, min: 0, max: 6 },
+  SPRD: { assign: "NONE", value: 100, min: 0, max: 100 },
+  REVS: { assign: "NONE", value: 50, min: 0, max: 100 },
+};
+
 function createParam(name, defaults = {}) {
   return {
     name,
@@ -54,6 +66,12 @@ function createParam(name, defaults = {}) {
   };
 }
 
+function createStepGrainParams() {
+  return DEFAULT_PARAM_NAMES.map((name) =>
+    createParam(name, STEP_GRAIN_PARAM_DEFAULTS[name] ?? {}),
+  );
+}
+
 function createSlot(fxLabel) {
   return {
     on: true,
@@ -64,21 +82,10 @@ function createSlot(fxLabel) {
     outGain: 512,
     xyFreeze: false,
     depthFreeze: false,
-    depth: 512,
-    x: 512,
+    depth: 100,
+    x: 1023,
     y: 512,
-    params: DEFAULT_PARAM_NAMES.map((name, paramIndex) => {
-      if (name === "MIX") {
-        return createParam(name, { assign: "DEPTH", value: 512 });
-      }
-      if (paramIndex === 0) {
-        return createParam(name, { assign: "X", value: 600 });
-      }
-      if (paramIndex === 1) {
-        return createParam(name, { assign: "Y", value: 400 });
-      }
-      return createParam(name);
-    }),
+    params: createStepGrainParams(),
   };
 }
 
@@ -115,17 +122,17 @@ export function useProgramEditor() {
     return program.slots[program.activeSlot];
   }
 
-  function clampParamRange(value) {
-    return Math.max(0, Math.min(1023, Math.round(value)));
+  function clampParamRange(value, min = 0, max = 1023) {
+    return Math.max(min, Math.min(max, Math.round(value)));
   }
 
   function updateParam(paramIndex, patch) {
     const slot = activeSlot();
     const param = slot.params[paramIndex];
     Object.assign(param, patch);
-    param.value = clampParamRange(param.value);
-    param.min = clampParamRange(param.min);
-    param.max = clampParamRange(param.max);
+    param.min = clampParamRange(param.min, 0, 1023);
+    param.max = clampParamRange(param.max, param.min, 1023);
+    param.value = clampParamRange(param.value, param.min, param.max);
   }
 
   function clearActiveSlot() {
@@ -138,10 +145,10 @@ export function useProgramEditor() {
     slot.outGain = 512;
     slot.xyFreeze = false;
     slot.depthFreeze = false;
-    slot.depth = 512;
-    slot.x = 512;
+    slot.depth = 100;
+    slot.x = 1023;
     slot.y = 512;
-    slot.params = DEFAULT_PARAM_NAMES.map((name) => createParam(name));
+    slot.params = createStepGrainParams();
   }
 
   return {
