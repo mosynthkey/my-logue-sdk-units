@@ -7,8 +7,8 @@
  *
  * Always records AUDIO IN; touch freezes and granulates.
  * X/FEEL: left = sparse stitches; right = dense multi-grain wash.
- * Y = octave mix (0 / +1 / +2). ENV = grain attack/release.
- * STEPS sets grain length and trigger grid (StepFilter-style 4ppqn).
+ * Y = octave mix (0 / +1 / +2). ENV = seam overlap in steps (fade beyond each body).
+ * STEPS sets body length and trigger grid (StepFilter-style 4ppqn).
  * SPRD = stereo width. HPF = wet high-pass. Prefers get_raw_input while pad up.
  */
 
@@ -29,6 +29,7 @@ public:
   static constexpr float kMinCapturePeak = 0.003f;
   static constexpr float kTwoPi = 6.283185307179586f;
   static constexpr uint8_t kNumPeriods = 8U;
+  static constexpr uint8_t kNumSeams = 7U;
 
   uint32_t getBufferSize() const override final { return kMaxCaptureSamples * 2U; }
 
@@ -57,6 +58,17 @@ public:
     PERIOD_HALF
   };
 
+  enum
+  {
+    SEAM_OFF = 0U,
+    SEAM_HALF,
+    SEAM_1STEP,
+    SEAM_2STEP,
+    SEAM_4STEP,
+    SEAM_8STEP,
+    SEAM_16STEP
+  };
+
   void setParameter(uint8_t index, int32_t value) override final
   {
     switch (index)
@@ -75,7 +87,8 @@ public:
         mix_ = 1.f;
       break;
     case ENV:
-      env_norm_ = param10BitToNorm(value);
+      seam_sel_ = static_cast<uint8_t>(
+          fx::clip(static_cast<float>(value), 0.f, static_cast<float>(kNumSeams - 1U)));
       break;
     case STEPS:
       period_sel_ = static_cast<uint8_t>(
@@ -99,8 +112,11 @@ public:
   const char *getParameterStrValue(uint8_t index, int32_t value) const override final
   {
     static const char *period_names[kNumPeriods] = {"4Bar", "2Bar", "16St", "8St", "4St", "2St", "1St", "1/2"};
+    static const char *seam_names[kNumSeams] = {"Off", "1/2", "1St", "2St", "4St", "8St", "16St"};
     if (index == STEPS && value >= 0 && value < static_cast<int32_t>(kNumPeriods))
       return period_names[value];
+    if (index == ENV && value >= 0 && value < static_cast<int32_t>(kNumSeams))
+      return seam_names[value];
     return nullptr;
   }
 
@@ -115,7 +131,7 @@ public:
     feel_norm_ = 1.f;
     oct_norm_ = 0.5f;
     mix_ = 1.f;
-    env_norm_ = 0.55f;
+    seam_sel_ = SEAM_1STEP;
     period_sel_ = PERIOD_1STEP;
     sprd_norm_ = 0.35f;
     hpf_norm_ = 0.15f;
@@ -293,11 +309,13 @@ private:
     float pan_right = 0.7071f;
     uint32_t age = 0U;
     uint32_t length = 0U;
+    uint32_t attack = 8U;
+    uint32_t release = 8U;
 
     void reset() { active = false; }
 
     void trigger(float pos, float playback_rate, float velocity, uint32_t length_samples,
-                 float gain_left, float gain_right)
+                 uint32_t attack_samples, uint32_t release_samples, float gain_left, float gain_right)
     {
       active = true;
       read_pos = pos;
@@ -307,6 +325,17 @@ private:
       pan_right = gain_right;
       age = 0U;
       length = length_samples < 32U ? 32U : length_samples;
+      attack = attack_samples < 1U ? 1U : attack_samples;
+      release = release_samples < 1U ? 1U : release_samples;
+      if (attack + release > length)
+      {
+        attack = length / 2U;
+        release = length - attack;
+        if (attack < 1U)
+          attack = 1U;
+        if (release < 1U)
+          release = 1U;
+      }
     }
   };
 
@@ -340,28 +369,17 @@ private:
     return kPeriods[period_sel < kNumPeriods ? period_sel : PERIOD_1STEP];
   }
 
-  // Raised-cosine attack / release; ENV scales both edges (short ↔ soft).
-  float grainEnvelope(uint32_t age, uint32_t length) const
+  static float seamSixteenths(uint8_t seam_sel)
+  {
+    static const float kSeams[kNumSeams] = {0.f, 0.5f, 1.f, 2.f, 4.f, 8.f, 16.f};
+    return kSeams[seam_sel < kNumSeams ? seam_sel : SEAM_OFF];
+  }
+
+  // Raised-cosine fade over the seam margins stored on each grain.
+  static float grainEnvelope(uint32_t age, uint32_t length, uint32_t attack, uint32_t release)
   {
     if (length <= 1U)
       return 0.f;
-
-    const float edge = 0.08f + clamp01(env_norm_) * 0.42f;
-    uint32_t attack = static_cast<uint32_t>(static_cast<float>(length) * edge + 0.5f);
-    uint32_t release = attack;
-    if (attack < 8U)
-      attack = 8U;
-    if (release < 8U)
-      release = 8U;
-    if (attack + release > length)
-    {
-      attack = length / 2U;
-      release = length - attack;
-      if (attack < 1U)
-        attack = 1U;
-      if (release < 1U)
-        release = 1U;
-    }
 
     if (age < attack)
     {
@@ -406,6 +424,18 @@ private:
     float samples = beat * 0.25f * periodSixteenths(period_sel_);
     if (samples < 48.f)
       samples = 48.f;
+    return static_cast<uint32_t>(samples + 0.5f);
+  }
+
+  uint32_t seamMarginSamples() const
+  {
+    const float sixteenths = seamSixteenths(seam_sel_);
+    if (sixteenths <= 0.f)
+      return 8U;
+    const float beat = static_cast<float>(fx::samplesPerBeat(bpm_, getSampleRate()));
+    float samples = beat * 0.25f * sixteenths;
+    if (samples < 8.f)
+      samples = 8.f;
     return static_cast<uint32_t>(samples + 0.5f);
   }
 
@@ -600,11 +630,24 @@ private:
       slot = best_slot;
     }
 
-    uint32_t length_samples = periodLengthSamples();
-    if (length_samples > freeze_length_)
+    uint32_t body_samples = periodLengthSamples();
+    if (body_samples < 48U)
+      body_samples = 48U;
+
+    // ENV selects fade-in/out length in steps (のりしろ) beyond the STEPS body.
+    uint32_t margin = seamMarginSamples();
+    uint32_t length_samples = body_samples + 2U * margin;
+    if (freeze_length_ >= 32U && length_samples > freeze_length_)
+    {
       length_samples = freeze_length_;
-    if (length_samples < 48U)
-      length_samples = 48U;
+      margin = (length_samples - 16U) / 2U;
+      if (margin < 8U)
+        margin = 8U;
+      if (2U * margin >= length_samples)
+        margin = length_samples / 4U;
+      if (margin < 1U)
+        margin = 1U;
+    }
 
     const float spray = 0.05f + smooth * 0.30f;
     const float center = 0.70f + randomSigned() * spray;
@@ -623,7 +666,10 @@ private:
         read_pos -= static_cast<float>(freeze_length_);
     }
 
-    float overlap = static_cast<float>(grain_count);
+    const float body_six = periodSixteenths(period_sel_);
+    const float seam_six = seamSixteenths(seam_sel_);
+    const float temporal = (body_six > 0.f) ? (seam_six / body_six) : 0.f;
+    float overlap = static_cast<float>(grain_count) * (1.f + temporal);
     if (overlap < 1.f)
       overlap = 1.f;
     const float density_gain = 1.85f / fasterpowf(overlap, 0.5f);
@@ -634,7 +680,7 @@ private:
     const float gain_left = fastercosf(angle);
     const float gain_right = fastersinf(angle);
 
-    grains_[slot].trigger(read_pos, rate, velocity, length_samples, gain_left, gain_right);
+    grains_[slot].trigger(read_pos, rate, velocity, length_samples, margin, margin, gain_left, gain_right);
   }
 
   void sampleFrozen(float position, float &left, float &right) const
@@ -679,7 +725,7 @@ private:
       float sample_right = 0.f;
       sampleFrozen(grain.read_pos, sample_left, sample_right);
 
-      const float envelope = grainEnvelope(grain.age, grain.length);
+      const float envelope = grainEnvelope(grain.age, grain.length, grain.attack, grain.release);
       const float amp = grain.gain * envelope;
       const float mono = (sample_left + sample_right) * 0.5f * amp;
       left += mono * grain.pan_left;
@@ -707,11 +753,11 @@ private:
   float feel_norm_ = 1.f;
   float oct_norm_ = 0.5f;
   float mix_ = 1.f;
-  float env_norm_ = 0.55f;
   float sprd_norm_ = 0.35f;
   float hpf_norm_ = 0.15f;
   float revs_norm_ = 0.f;
   uint8_t period_sel_ = PERIOD_1STEP;
+  uint8_t seam_sel_ = SEAM_1STEP;
   float bpm_ = 120.f;
 
   uint32_t write_pos_ = 0U;

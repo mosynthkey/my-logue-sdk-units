@@ -13,7 +13,7 @@ int main()
   fx.setParameter(GrainPad::MIX, 1000);
   fx.setParameter(GrainPad::FEEL, 800);
   fx.setParameter(GrainPad::OCT, 700);
-  fx.setParameter(GrainPad::ENV, 600);
+  fx.setParameter(GrainPad::ENV, GrainPad::SEAM_1STEP);
   fx.setParameter(GrainPad::STEPS, GrainPad::PERIOD_1STEP);
   fx.setParameter(GrainPad::SPRD, 700);
   fx.setParameter(GrainPad::HPF, 200);
