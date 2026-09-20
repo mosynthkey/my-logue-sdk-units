@@ -17,7 +17,7 @@ int main()
   fx.setParameter(StepGrain::ENV, StepGrain::SEAM_1STEP);
   fx.setParameter(StepGrain::STEPS, StepGrain::PERIOD_1STEP);
   fx.setParameter(StepGrain::SPRD, 100);
-  fx.setParameter(StepGrain::HPF, 0);
+  fx.setParameter(StepGrain::MODE, StepGrain::MODE_VOLUME);
   fx.setParameter(StepGrain::REVS, 50);
 
   // String Desc path (dummy-genericfx style switch tables)
@@ -27,8 +27,12 @@ int main()
     return 3;
   if (std::string(fx.getParameterStrValue(StepGrain::STEPS, StepGrain::PERIOD_HALF)) != "Half")
     return 4;
-  if (fx.getParameterStrValue(StepGrain::MIX, 100) != nullptr)
+  if (std::string(fx.getParameterStrValue(StepGrain::MODE, StepGrain::MODE_VOLUME)) != "Volume")
     return 5;
+  if (std::string(fx.getParameterStrValue(StepGrain::MODE, StepGrain::MODE_FREQ)) != "Freq")
+    return 6;
+  if (fx.getParameterStrValue(StepGrain::MIX, 100) != nullptr)
+    return 7;
 
   std::vector<float> input(kFrames * 2U, 0.f);
   std::vector<float> output(kFrames * 2U, 0.f);
