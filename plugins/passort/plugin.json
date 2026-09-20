@@ -4,7 +4,7 @@
   "name": "Passort",
   "type": "fx",
   "targets": ["nts-3_kaoss"],
-  "description": "Performance Assort for NTS-3. The effect locks from where you first touch the pad, then finger motion drives that effect. Top-left = HPF (right cutoff, down resonance). Top-right = LPF (left cutoff, down resonance). Center = tape stop. Bottom-left = dotted-8th delay (up depth, right feedback HPF). Bottom-right = beat-sync step roll (up speed, left buffer length). Depth = overall wet. Untouched = bypass.",
+  "description": "Performance Assort for NTS-3. The effect locks from where you first touch the pad, then finger motion drives that effect. Top-left = HPF (right cutoff, down resonance). Top-right = LPF (left cutoff, down resonance). Center = tape stop. Bottom-left = dotted-8th delay (up depth, right feedback HPF). Bottom-right = beat-sync step roll (up speed, left shorter buffer). Depth = overall wet. Untouched = bypass.",
   "params": [
     { "name": "MIX", "role": "Depth", "detail": "Overall dry/wet while an effect region is engaged" },
     { "name": "TAPE", "role": "Edit", "detail": "Tape-stop spindown length in beats" },
