@@ -127,5 +127,5 @@ __unit_callback void unit_set_tempo(uint32_t tempo)
 
 __unit_callback void unit_tempo_4ppqn_tick(uint32_t counter)
 {
-  (void)counter;
+  s_grainpad_instance.tempo4ppqnTick(counter);
 }

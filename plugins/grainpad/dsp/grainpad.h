@@ -6,11 +6,13 @@
  * Live capture granular pad for NTS-3.
  *
  * Always records AUDIO IN; touch freezes and granulates.
- * X/FEEL: left = sparse long stitches; right = dense Hann-overlap wash.
- * Y = octave mix. ENV = grain attack/release. Capture window is fixed max.
+ * X/FEEL: left = sparse stitches; right = dense multi-grain wash.
+ * Y = octave mix (0 / +1 / +2). ENV = grain attack/release.
+ * STEPS sets grain length and trigger grid (StepFilter-style 4ppqn).
  * SPRD = stereo width. HPF = wet high-pass. Prefers get_raw_input while pad up.
  */
 
+#include "fx_dsp.h"
 #include "processor.h"
 #include "runtime.h"
 #include "utils/float_math.h"
@@ -22,12 +24,11 @@ public:
   static constexpr uint32_t kMaxCaptureSamples = 144000U;
   static constexpr uint32_t kMinCaptureSamples = 2048U;
   static constexpr uint32_t kMaxGrains = 24U;
-  static constexpr float kMinGrainMs = 100.f;
-  static constexpr float kMaxGrainMs = 320.f;
   static constexpr float kMinBpm = 40.f;
   static constexpr float kMaxBpm = 300.f;
   static constexpr float kMinCapturePeak = 0.003f;
   static constexpr float kTwoPi = 6.283185307179586f;
+  static constexpr uint8_t kNumPeriods = 8U;
 
   uint32_t getBufferSize() const override final { return kMaxCaptureSamples * 2U; }
 
@@ -37,7 +38,7 @@ public:
     OCT,
     MIX,
     ENV,
-    SYNC,
+    STEPS,
     SPRD,
     HPF,
     REVS,
@@ -46,12 +47,14 @@ public:
 
   enum
   {
-    SYNC_32 = 0,
-    SYNC_16,
-    SYNC_8,
-    SYNC_4,
-    SYNC_2,
-    NUM_SYNCS
+    PERIOD_4BAR = 0U,
+    PERIOD_2BAR,
+    PERIOD_16STEP,
+    PERIOD_8STEP,
+    PERIOD_4STEP,
+    PERIOD_2STEP,
+    PERIOD_1STEP,
+    PERIOD_HALF
   };
 
   void setParameter(uint8_t index, int32_t value) override final
@@ -60,7 +63,6 @@ public:
     {
     case FEEL:
       feel_norm_ = param10BitToNorm(value);
-      updateSpawnPeriod();
       break;
     case OCT:
       oct_norm_ = param10BitToNorm(value);
@@ -75,21 +77,10 @@ public:
     case ENV:
       env_norm_ = param10BitToNorm(value);
       break;
-    case SYNC:
-    {
-      int32_t sync = value;
-      if (sync < 0)
-        sync = 0;
-      if (sync >= NUM_SYNCS)
-        sync = NUM_SYNCS - 1;
-      if (sync_ != static_cast<uint8_t>(sync))
-      {
-        sync_ = static_cast<uint8_t>(sync);
-        updateSpawnPeriod();
-        spawn_countdown_ = 0.f;
-      }
+    case STEPS:
+      period_sel_ = static_cast<uint8_t>(
+          fx::clip(static_cast<float>(value), 0.f, static_cast<float>(kNumPeriods - 1U)));
       break;
-    }
     case SPRD:
       sprd_norm_ = param10BitToNorm(value);
       break;
@@ -107,9 +98,9 @@ public:
 
   const char *getParameterStrValue(uint8_t index, int32_t value) const override final
   {
-    static const char *sync_names[NUM_SYNCS] = {"1/32", "1/16", "1/8", "1/4", "1/2"};
-    if (index == SYNC && value >= 0 && value < NUM_SYNCS)
-      return sync_names[value];
+    static const char *period_names[kNumPeriods] = {"4Bar", "2Bar", "16St", "8St", "4St", "2St", "1St", "1/2"};
+    if (index == STEPS && value >= 0 && value < static_cast<int32_t>(kNumPeriods))
+      return period_names[value];
     return nullptr;
   }
 
@@ -125,13 +116,12 @@ public:
     oct_norm_ = 0.5f;
     mix_ = 1.f;
     env_norm_ = 0.55f;
-    sync_ = SYNC_16;
+    period_sel_ = PERIOD_1STEP;
     sprd_norm_ = 0.35f;
     hpf_norm_ = 0.15f;
     revs_norm_ = 0.f;
     bpm_ = 120.f;
     capture_length_ = kMaxCaptureSamples;
-    updateSpawnPeriod();
     updateHpfCoeff();
     reset();
   }
@@ -155,7 +145,10 @@ public:
     wet_ = 0.f;
     freeze_origin_ = 0U;
     freeze_length_ = capture_length_;
-    spawn_countdown_ = 0.f;
+    tick_counter_ = 0U;
+    internal_tick_phase_ = 0.f;
+    half_step_samples_left_ = -1;
+    use_host_clock_ = false;
     rng_state_ = 0xC0FFEE01U;
     hpf_state_left_ = 0.f;
     hpf_state_right_ = 0.f;
@@ -165,10 +158,13 @@ public:
   void setTempo(float tempo) override final
   {
     if (tempo >= kMinBpm && tempo <= kMaxBpm)
-    {
       bpm_ = tempo;
-      updateSpawnPeriod();
-    }
+  }
+
+  void tempo4ppqnTick(uint32_t counter) override final
+  {
+    use_host_clock_ = true;
+    onSixteenthTick(counter);
   }
 
   void touchEvent(uint8_t id, uint8_t phase, uint32_t x, uint32_t y) override final
@@ -177,13 +173,13 @@ public:
 
     feel_norm_ = static_cast<float>(x) * (1.f / 1023.f);
     oct_norm_ = static_cast<float>(y) * (1.f / 1023.f);
-    updateSpawnPeriod();
 
     if (phase == k_unit_touch_phase_ended || phase == k_unit_touch_phase_cancelled)
     {
       pad_held_ = false;
       arming_ = false;
       wet_ = 0.f;
+      half_step_samples_left_ = -1;
       if (frozen_)
       {
         frozen_ = false;
@@ -224,6 +220,10 @@ public:
   {
     for (uint32_t sampleIndex = 0; sampleIndex < frames; ++sampleIndex)
     {
+      if (!use_host_clock_)
+        advanceInternalClockOneSample();
+      advanceHalfStepArm();
+
       float live_left = in[0];
       float live_right = in[1];
       float rec_left = live_left;
@@ -259,7 +259,6 @@ public:
       float grain_right = 0.f;
       if (wet_ > 0.f && frozen_)
       {
-        advanceSpawner();
         renderGrains(grain_left, grain_right);
         applyHpf(grain_left, grain_right);
       }
@@ -335,6 +334,12 @@ private:
     return ((c3 * frac + c2) * frac + c1) * frac + y1;
   }
 
+  static float periodSixteenths(uint8_t period_sel)
+  {
+    static const float kPeriods[kNumPeriods] = {64.f, 32.f, 16.f, 8.f, 4.f, 2.f, 1.f, 0.5f};
+    return kPeriods[period_sel < kNumPeriods ? period_sel : PERIOD_1STEP];
+  }
+
   // Raised-cosine attack / release; ENV scales both edges (short ↔ soft).
   float grainEnvelope(uint32_t age, uint32_t length) const
   {
@@ -395,42 +400,13 @@ private:
            samples_since_unfreeze_ >= ready;
   }
 
-  void updateSpawnPeriod()
+  uint32_t periodLengthSamples() const
   {
-    static const float kBeats[NUM_SYNCS] = {0.125f, 0.25f, 0.5f, 1.f, 2.f};
-    const float beats = kBeats[sync_ < NUM_SYNCS ? sync_ : SYNC_16];
-    float sync_samples = beats * 60.f / bpm_ * getSampleRate();
-    if (sync_samples < 32.f)
-      sync_samples = 32.f;
-    sync_period_ = sync_samples;
-
-    const float x = clamp01(feel_norm_);
-    // Smoothstep so density doesn't cliff into sparse stitches.
-    const float smooth = x * x * (3.f - 2.f * x);
-    const float grain_ms = kMinGrainMs + smooth * (kMaxGrainMs - kMinGrainMs);
-    const float grain_samples = grain_ms * 0.001f * getSampleRate();
-
-    // Left ~1.2× joined stitches; right ~3.5× wash (not a 6× hailstorm).
-    const float target_overlap = 1.2f + smooth * 2.3f;
-    spawn_period_ = grain_samples / target_overlap;
-
-    // Keep a loose tempo tether without forcing 1-grain-per-SYNC chops.
-    const float max_period = sync_period_ * (1.15f - smooth * 0.55f);
-    if (spawn_period_ > max_period)
-      spawn_period_ = max_period;
-    float min_period = sync_period_ / (4.f + smooth * 10.f);
-    // SYNC can slow the clock, but not enough to open holes in the Hann join.
-    const float gapless_period = grain_samples / 1.2f;
-    if (min_period > gapless_period)
-      min_period = gapless_period;
-    if (spawn_period_ < min_period)
-      spawn_period_ = min_period;
-    if (spawn_period_ < 12.f)
-      spawn_period_ = 12.f;
-
-    expected_overlap_ = grain_samples / spawn_period_;
-    if (expected_overlap_ < 1.2f)
-      expected_overlap_ = 1.2f;
+    const float beat = static_cast<float>(fx::samplesPerBeat(bpm_, getSampleRate()));
+    float samples = beat * 0.25f * periodSixteenths(period_sel_);
+    if (samples < 48.f)
+      samples = 48.f;
+    return static_cast<uint32_t>(samples + 0.5f);
   }
 
   void updateHpfCoeff()
@@ -464,8 +440,10 @@ private:
       origin += static_cast<int32_t>(kMaxCaptureSamples);
     freeze_origin_ = static_cast<uint32_t>(origin);
 
-    spawn_countdown_ = 0.f;
+    half_step_samples_left_ = -1;
     clearGrains();
+    // Engage immediately; subsequent spawns follow the absolute grid.
+    fireStepGrains();
   }
 
   void recordSample(float left, float right)
@@ -501,41 +479,96 @@ private:
 
   float randomSigned() { return nextUnitRandom() * 2.f - 1.f; }
 
+  // Y maps 0..1 → mixture of unison / +1 / +2 octave grains (rates 1 / 2 / 4).
   float chooseGrainRate()
   {
-    const float bias = (clamp01(oct_norm_) - 0.5f) * 2.f;
-    const float roll = nextUnitRandom();
+    const float target = clamp01(oct_norm_) * 2.f;
+    const float lo = static_cast<float>(static_cast<int32_t>(target));
+    float hi = lo + 1.f;
+    if (hi > 2.f)
+      hi = 2.f;
+    const float frac = target - lo;
+    const float octaves = (nextUnitRandom() < frac) ? hi : lo;
     float rate = 1.f;
-    if (bias > 0.f && roll < bias)
+    if (octaves >= 1.5f)
+      rate = 4.f;
+    else if (octaves >= 0.5f)
       rate = 2.f;
-    else if (bias < 0.f && roll < -bias)
-      rate = 0.5f;
 
     if (nextUnitRandom() < clamp01(revs_norm_))
       rate = -rate;
     return rate;
   }
 
-  void advanceSpawner()
+  void onSixteenthTick(uint32_t counter)
   {
-    if (freeze_length_ < kMinCaptureSamples || spawn_period_ <= 0.f)
+    tick_counter_ = counter;
+    if (!frozen_ || wet_ <= 0.f)
+    {
+      half_step_samples_left_ = -1;
+      return;
+    }
+
+    const float period = periodSixteenths(period_sel_);
+    if (period < 1.f)
+    {
+      // PERIOD_HALF: fire on each 16th and arm a mid-16th (32nd) spawn.
+      fireStepGrains();
+      const float beat = static_cast<float>(fx::samplesPerBeat(bpm_, getSampleRate()));
+      half_step_samples_left_ = static_cast<int32_t>(beat * 0.125f);
+      return;
+    }
+
+    const uint32_t period_ticks = static_cast<uint32_t>(period + 0.5f);
+    if (period_ticks == 0U)
+      return;
+    const uint32_t step_index = (counter == 0U) ? 0U : (counter - 1U);
+    if ((step_index % period_ticks) == 0U)
+      fireStepGrains();
+  }
+
+  void advanceInternalClockOneSample()
+  {
+    const float beat = static_cast<float>(fx::samplesPerBeat(bpm_, getSampleRate()));
+    const float samples_per_tick = beat * 0.25f;
+    if (samples_per_tick <= 0.f)
+      return;
+    internal_tick_phase_ += 1.f;
+    if (internal_tick_phase_ >= samples_per_tick)
+    {
+      internal_tick_phase_ -= samples_per_tick;
+      ++tick_counter_;
+      onSixteenthTick(tick_counter_);
+    }
+  }
+
+  void advanceHalfStepArm()
+  {
+    if (half_step_samples_left_ < 0)
+      return;
+    --half_step_samples_left_;
+    if (half_step_samples_left_ == 0)
+    {
+      half_step_samples_left_ = -1;
+      if (frozen_ && wet_ > 0.f)
+        fireStepGrains();
+    }
+  }
+
+  void fireStepGrains()
+  {
+    if (freeze_length_ < kMinCaptureSamples)
       return;
 
     const float x = clamp01(feel_norm_);
     const float smooth = x * x * (3.f - 2.f * x);
-    spawn_countdown_ -= 1.f;
-    while (spawn_countdown_ <= 0.f)
-    {
-      spawnGrain();
-      const float jitter = 1.f + randomSigned() * smooth * 0.05f;
-      float step = spawn_period_ * jitter;
-      if (step < 10.f)
-        step = 10.f;
-      spawn_countdown_ += step;
-    }
+    // Sparse: 1 grain per step. Dense: up to 6 overlapping grains.
+    const uint32_t grain_count = 1U + static_cast<uint32_t>(smooth * 5.f + 0.5f);
+    for (uint32_t spawnIndex = 0; spawnIndex < grain_count; ++spawnIndex)
+      spawnGrain(smooth, grain_count);
   }
 
-  void spawnGrain()
+  void spawnGrain(float smooth, uint32_t grain_count)
   {
     uint32_t slot = kMaxGrains;
     for (uint32_t grainIndex = 0; grainIndex < kMaxGrains; ++grainIndex)
@@ -548,7 +581,6 @@ private:
     }
     if (slot >= kMaxGrains)
     {
-      // Prefer a voice near the end of its Hann; never hard-cut mid-grain.
       float best_progress = 0.65f;
       uint32_t best_slot = kMaxGrains;
       for (uint32_t grainIndex = 0; grainIndex < kMaxGrains; ++grainIndex)
@@ -568,10 +600,9 @@ private:
       slot = best_slot;
     }
 
-    const float x = clamp01(feel_norm_);
-    const float smooth = x * x * (3.f - 2.f * x);
-    const float grain_ms = kMinGrainMs + smooth * (kMaxGrainMs - kMinGrainMs);
-    uint32_t length_samples = static_cast<uint32_t>(grain_ms * 0.001f * getSampleRate());
+    uint32_t length_samples = periodLengthSamples();
+    if (length_samples > freeze_length_)
+      length_samples = freeze_length_;
     if (length_samples < 48U)
       length_samples = 48U;
 
@@ -592,10 +623,9 @@ private:
         read_pos -= static_cast<float>(freeze_length_);
     }
 
-    float overlap = expected_overlap_;
-    if (overlap < 1.2f)
-      overlap = 1.2f;
-    // Makeup so stitch (overlap≈1) sits near dry level; cloud still √N-compensated.
+    float overlap = static_cast<float>(grain_count);
+    if (overlap < 1.f)
+      overlap = 1.f;
     const float density_gain = 1.85f / fasterpowf(overlap, 0.5f);
     const float velocity = (0.75f + nextUnitRandom() * 0.35f) * density_gain;
 
@@ -681,7 +711,7 @@ private:
   float sprd_norm_ = 0.35f;
   float hpf_norm_ = 0.15f;
   float revs_norm_ = 0.f;
-  uint8_t sync_ = SYNC_16;
+  uint8_t period_sel_ = PERIOD_1STEP;
   float bpm_ = 120.f;
 
   uint32_t write_pos_ = 0U;
@@ -697,10 +727,10 @@ private:
   bool arming_ = false;
 
   float wet_ = 0.f;
-  float sync_period_ = 6000.f;
-  float spawn_period_ = 6000.f;
-  float expected_overlap_ = 1.f;
-  float spawn_countdown_ = 0.f;
+  uint32_t tick_counter_ = 0U;
+  float internal_tick_phase_ = 0.f;
+  int32_t half_step_samples_left_ = -1;
+  bool use_host_clock_ = false;
   uint32_t rng_state_ = 0xC0FFEE01U;
   Grain grains_[kMaxGrains];
 
