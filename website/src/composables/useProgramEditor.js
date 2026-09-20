@@ -28,7 +28,7 @@ export const SLOT_FX_OPTIONS = [
   "00: Thru",
   "01: Filter",
   "02: Distortion",
-  "35: GrainPad",
+  "35: StepGrain",
 ];
 
 const DEFAULT_PARAM_NAMES = [
@@ -36,7 +36,7 @@ const DEFAULT_PARAM_NAMES = [
   "OCT",
   "MIX",
   "ENV",
-  "SYNC",
+  "STEPS",
   "SPRD",
   "HPF",
   "REVS",
@@ -87,7 +87,7 @@ function createProgramState() {
     routing: "serial",
     activeSlot: 0,
     slots: [
-      createSlot("35: GrainPad"),
+      createSlot("35: StepGrain"),
       createSlot("00: Thru"),
       createSlot("00: Thru"),
       createSlot("00: Thru"),

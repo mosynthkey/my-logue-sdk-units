@@ -1,16 +1,16 @@
 {
-  "id": "grainpad",
+  "id": "stepgrain",
   "experimental": true,
-  "name": "GrainPad",
+  "name": "StepGrain",
   "type": "fx",
   "targets": ["nts-3_kaoss"],
-  "description": "Live-capture granular pad for NTS-3. Touch freezes up to 3 s of AUDIO IN into a tempo-synced grain cloud. X/FEEL: sparse ↔ dense. Y = octave mix (0 / +1 / +2). ENV = grain attack/release. STEPS = grain length & trigger grid. SPRD / HPF / REVS. MIX = dry/wet.",
+  "description": "Live-capture granular pad for NTS-3. Touch freezes up to 3 s of AUDIO IN into a tempo-synced grain cloud. X/FEEL: sparse ↔ dense. Y = octave mix (0 / +1 / +2). ENV = seam overlap in steps. STEPS = body length & trigger grid. SPRD / HPF / REVS. MIX = dry/wet.",
   "params": [
     { "name": "FEEL", "role": "X", "detail": "Left: sparse one-grain stitches. Right: dense multi-grain wash" },
     { "name": "OCT", "role": "Y", "detail": "Mixture of unison / +1 / +2 octave grains" },
     { "name": "MIX", "role": "Edit", "detail": "0 = dry only, max = granular only" },
-    { "name": "ENV", "role": "Edit", "detail": "Grain attack/release length (short/snappy ↔ long/soft)" },
-    { "name": "STEPS", "role": "Edit", "detail": "Grain length and trigger grid: 4Bar, 2Bar, 16St, 8St, 4St, 2St, 1St, 1/2" },
+    { "name": "ENV", "role": "Edit", "detail": "Fade-in/out seam beyond each STEPS body: Off, 1/2, 1St, 2St, 4St, 8St, 16St" },
+    { "name": "STEPS", "role": "Edit", "detail": "Grain body length and trigger grid: 4Bar, 2Bar, 16St, 8St, 4St, 2St, 1St, 1/2" },
     { "name": "SPRD", "role": "Edit", "detail": "Random stereo width (0 = mono, max = hard L/R)" },
     { "name": "HPF", "role": "Edit", "detail": "High-pass on the granular wet path (~60 Hz–10 kHz)" },
     { "name": "REVS", "role": "Edit", "detail": "Probability that a grain plays in reverse" }

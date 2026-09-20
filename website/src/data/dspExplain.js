@@ -221,15 +221,16 @@ export const dspExplainById = {
   Gate --> Mix[Dry or wet fade] --> Out[Out]
   In --> Mix`,
   },
-  grainpad: {
-    en: "Live-capture granular pad. Touch freezes up to 3 s of AUDIO IN into long, slow grains (100–320 ms). X/FEEL: sparse stitches ↔ dense wash. Y: octave mix. ENV = grain attack/release; SPRD / HPF / REVS as edits.",
-    ja: "AUDIO INを最大3秒フリーズし、長めのグレイン（100–320 ms）をゆっくり重ねます。Xは疎↔密、Yはoct混率。ENVで粒のアタック／リリース、SPRD／HPF／REVSあり。",
+  stepgrain: {
+    en: "Live-capture granular FX. Touch freezes up to 3 s of AUDIO IN into a tempo-synced grain cloud. STEPS sets body length and trigger grid; ENV adds step-length fade seams so grains crossfade. X/FEEL: sparse ↔ dense. Y: unison / +1 / +2 octave mix.",
+    ja: "AUDIO INを最大3秒フリーズし、テンポ同期のグレイン雲にします。STEPSで本体長とトリガ、ENVでstep単位ののりしろ（前後フェード）。Xは疎↔密、Yは0/+1/+2oct。",
     mermaid: `flowchart LR
   In[Audio in] --> Ring[SDRAM max 3s]
-  Touch[Touch freeze] --> Cloud[Grain cloud]
+  Touch[Touch freeze] --> Cloud[Step grain cloud]
   Ring --> Cloud
+  Steps[STEPS body and grid] --> Cloud
+  Env[ENV seam fades] --> Cloud
   Feel[FEEL density] --> Cloud
-  Env[ENV A/R] --> Cloud
   Cloud --> HPF[Wet HPF] --> Mix[Dry or wet] --> Out[Out]
   In --> Mix`,
   },

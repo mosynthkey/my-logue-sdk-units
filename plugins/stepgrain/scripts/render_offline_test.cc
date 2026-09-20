@@ -1,4 +1,4 @@
-#include "grainpad.h"
+#include "stepgrain.h"
 #include "runtime.h"
 #include <cstdio>
 #include <vector>
@@ -6,18 +6,18 @@
 int main()
 {
   constexpr uint32_t kFrames = 128U;
-  GrainPad fx;
+  StepGrain fx;
   std::vector<float> ram(fx.getBufferSize(), 0.f);
   fx.init(ram.data());
   fx.setTempo(120.f);
-  fx.setParameter(GrainPad::MIX, 1000);
-  fx.setParameter(GrainPad::FEEL, 800);
-  fx.setParameter(GrainPad::OCT, 700);
-  fx.setParameter(GrainPad::ENV, 600);
-  fx.setParameter(GrainPad::STEPS, GrainPad::PERIOD_1STEP);
-  fx.setParameter(GrainPad::SPRD, 700);
-  fx.setParameter(GrainPad::HPF, 200);
-  fx.setParameter(GrainPad::REVS, 200);
+  fx.setParameter(StepGrain::MIX, 1000);
+  fx.setParameter(StepGrain::FEEL, 800);
+  fx.setParameter(StepGrain::OCT, 700);
+  fx.setParameter(StepGrain::ENV, StepGrain::SEAM_1STEP);
+  fx.setParameter(StepGrain::STEPS, StepGrain::PERIOD_1STEP);
+  fx.setParameter(StepGrain::SPRD, 700);
+  fx.setParameter(StepGrain::HPF, 200);
+  fx.setParameter(StepGrain::REVS, 200);
 
   std::vector<float> input(kFrames * 2U, 0.f);
   std::vector<float> output(kFrames * 2U, 0.f);
@@ -69,6 +69,6 @@ int main()
     fx.process(input.data(), input.data(), output.data(), kFrames);
 
   const float late_mean = late_count > 0U ? late_abs / static_cast<float>(late_count) : 0.f;
-  std::printf("grainpad_offline_peak=%.6f late_mean=%.6f\n", peak, late_mean);
+  std::printf("stepgrain_offline_peak=%.6f late_mean=%.6f\n", peak, late_mean);
   return (peak > 0.001f && late_mean > 0.001f) ? 0 : 1;
 }

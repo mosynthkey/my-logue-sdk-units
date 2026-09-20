@@ -56,7 +56,7 @@
   - 対応: nts-3_kaoss
   - Glitch² 風トランスゲート。ライブ入力をテンポグリッドで切り刻む。Y=ゲート速度。非タッチ=バイパス。
 
-- **GrainPad** (`grainpad`) — fx（実験的）
+- **StepGrain** (`stepgrain`) — fx（実験的）
   - 対応: nts-3_kaoss
   - 直近 AUDIO IN を最大3秒フリーズ→Hann風グラニュラー。X=疎↔密、Y=±1oct。ENV=粒のA/R、SPRD / HPF / REVS。
 

@@ -2,7 +2,7 @@
 # Configuration for Makefile
 #
 
-PROJECT := grainpad
+PROJECT := stepgrain
 PROJECT_TYPE := genericfx
 
 ##############################################################################
