@@ -587,6 +587,21 @@ export const dspExplainById = {
   Clip --> Mix[Dry or wet] --> Out[Out]
   In --> Mix`,
   },
+  steperror: {
+    en: "DataBend media-failure errors decided once per tempo step. X = fire probability, Y = error depth (hold / crush / dropout / CD-skip). KIND picks the flavor or ALL to roll one per hit. STEPS is the decision grid. Hold the pad to engage; release is dry.",
+    ja: "DataBendのメディア故障をテンポステップごとに判定します。Xは発火確率、Yは破損の深さ（ホールド／クラッシュ／ドロップ／CDスキップ）。KINDで種類、ALLはヒットごとに抽選。STEPSは判定グリッド。パッド押下中のみ効きます。",
+    mermaid: `flowchart LR
+  Tempo[BPM clock] --> Grid[STEPS period]
+  Grid --> Roll[PROB dice]
+  KIND[KIND] --> Flavor[HOLD CRUSH DROP SKIP]
+  Roll --> Flavor
+  In[Audio in] --> Buf[Stereo ring]
+  Buf --> Err[Per-step error]
+  Flavor --> Err
+  ERR[Y depth] --> Err
+  Err --> Mix[Dry or wet] --> Out[Out]
+  In --> Mix`,
+  },
   stepflanger: {
     en: "Tempo-synced sample-and-hold flanger on AUDIO IN. Y is dual around center: |Y| = LFO depth, sign(Y) × step-random = feedback (up +, down −). STEPS = feedback S&H grid; LFO = separate tempo-synced sweep cycle. X = base delay. Hold the pad to engage.",
     ja: "AUDIO INへのテンポ同期S&Hフランジャーです。Yは中央基準の二重割り当て（|Y|=LFOデプス、符号×ステップ乱数=フィードバックで上=+・下=−）。STEPSはFB乱数周期、LFOはスイープ周期（別々）。Xは基点ディレイ。パッド押下中のみ効きます。",

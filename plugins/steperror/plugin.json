@@ -1,0 +1,37 @@
+{
+  "id": "steperror",
+  "experimental": true,
+  "name": "StepError",
+  "type": "fx",
+  "targets": [
+    "nts-3_kaoss"
+  ],
+  "description": "DataBend's media-failure errors, one decision per tempo step. X = chance a step corrupts, Y = how deep the damage goes (hold, crush, dropout, CD skip). Hold the pad to engage; release is dry.",
+  "params": [
+    {
+      "name": "PROB",
+      "role": "X",
+      "detail": "Chance each step fires a data error"
+    },
+    {
+      "name": "ERR",
+      "role": "Y",
+      "detail": "Error depth: bit-rot, stuck samples, dropouts, skip window"
+    },
+    {
+      "name": "MIX",
+      "role": "Depth",
+      "detail": "Dry/wet while the pad is held"
+    },
+    {
+      "name": "STEPS",
+      "role": "Edit",
+      "detail": "Error decision grid: 4Bar, 2Bar, 16St, 8St, 4St, 2St, 1St, 1/2"
+    },
+    {
+      "name": "KIND",
+      "role": "Edit",
+      "detail": "Error flavor: ALL, HOLD, CRUSH, DROP, SKIP"
+    }
+  ]
+}
