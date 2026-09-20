@@ -17,7 +17,7 @@ int main()
   fx.setParameter(StepGrain::ENV, StepGrain::SEAM_1STEP);
   fx.setParameter(StepGrain::STEPS, StepGrain::PERIOD_1STEP);
   fx.setParameter(StepGrain::SPRD, 100);
-  fx.setParameter(StepGrain::MODE, StepGrain::MODE_VOLUME);
+  fx.setParameter(StepGrain::MODE, StepGrain::MODE_FREQ);
   fx.setParameter(StepGrain::REVS, 50);
 
   // String Desc path (dummy-genericfx style switch tables)

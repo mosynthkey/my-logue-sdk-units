@@ -196,7 +196,7 @@ public:
     seam_sel_ = SEAM_1STEP;
     period_sel_ = PERIOD_1STEP;
     sprd_norm_ = 1.f;
-    mode_sel_ = MODE_VOLUME;
+    mode_sel_ = MODE_FREQ;
     revs_norm_ = 0.5f;
     bpm_ = 120.f;
     capture_length_ = kMaxCaptureSamples;
@@ -821,7 +821,7 @@ private:
   float revs_norm_ = 0.5f;
   uint8_t period_sel_ = PERIOD_1STEP;
   uint8_t seam_sel_ = SEAM_1STEP;
-  uint8_t mode_sel_ = MODE_VOLUME;
+  uint8_t mode_sel_ = MODE_FREQ;
   float bpm_ = 120.f;
 
   uint32_t write_pos_ = 0U;
