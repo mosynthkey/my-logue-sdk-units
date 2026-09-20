@@ -35,10 +35,10 @@ const DEFAULT_PARAM_NAMES = [
   "FEEL",
   "OCT",
   "MIX",
-  "ENV",
-  "STEPS",
-  "SPRD",
   "MODE",
+  "STEPS",
+  "ENV",
+  "SPRD",
   "REVS",
 ];
 
