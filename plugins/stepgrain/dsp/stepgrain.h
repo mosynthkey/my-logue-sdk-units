@@ -23,7 +23,7 @@ class StepGrain : public Processor
 public:
   static constexpr uint32_t kMaxCaptureSamples = 144000U;
   static constexpr uint32_t kMinCaptureSamples = 2048U;
-  static constexpr uint32_t kMaxGrains = 24U;
+  static constexpr uint32_t kMaxGrains = 48U;
   static constexpr float kMinBpm = 40.f;
   static constexpr float kMaxBpm = 300.f;
   static constexpr float kMinCapturePeak = 0.003f;
