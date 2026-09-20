@@ -30,7 +30,7 @@ public:
   static constexpr float kMinCapturePeak = 0.003f;
   static constexpr float kTwoPi = 6.283185307179586f;
   static constexpr uint8_t kNumPeriods = 8U;
-  static constexpr uint8_t kNumSeams = 7U;
+  static constexpr uint8_t kNumSeams = 5U;
   static constexpr uint8_t kNumModes = 2U;
 
   uint32_t getBufferSize() const override final { return kMaxCaptureSamples * 2U; }
@@ -66,9 +66,7 @@ public:
     SEAM_HALF,
     SEAM_1STEP,
     SEAM_2STEP,
-    SEAM_4STEP,
-    SEAM_8STEP,
-    SEAM_16STEP
+    SEAM_4STEP
   };
 
   enum
@@ -143,8 +141,6 @@ public:
         "1 St",
         "2 St",
         "4 St",
-        "8 St",
-        "16 St",
     };
     static const char *steps_strings[kNumPeriods] = {
         "4 Bar",
@@ -193,7 +189,7 @@ public:
     feel_norm_ = 1.f;
     oct_norm_ = 0.5f;
     mix_ = 1.f;
-    seam_sel_ = SEAM_1STEP;
+    seam_sel_ = SEAM_4STEP;
     period_sel_ = PERIOD_1STEP;
     sprd_norm_ = 1.f;
     mode_sel_ = MODE_FREQ;
@@ -442,7 +438,7 @@ private:
 
   static float seamSixteenths(uint8_t seam_sel)
   {
-    static const float kSeams[kNumSeams] = {0.f, 0.5f, 1.f, 2.f, 4.f, 8.f, 16.f};
+    static const float kSeams[kNumSeams] = {0.f, 0.5f, 1.f, 2.f, 4.f};
     return kSeams[seam_sel < kNumSeams ? seam_sel : SEAM_OFF];
   }
 
@@ -820,7 +816,7 @@ private:
   float sprd_norm_ = 1.f;
   float revs_norm_ = 0.5f;
   uint8_t period_sel_ = PERIOD_1STEP;
-  uint8_t seam_sel_ = SEAM_1STEP;
+  uint8_t seam_sel_ = SEAM_4STEP;
   uint8_t mode_sel_ = MODE_FREQ;
   float bpm_ = 120.f;
 

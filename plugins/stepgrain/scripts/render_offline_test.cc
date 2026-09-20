@@ -14,25 +14,29 @@ int main()
   fx.setParameter(StepGrain::MIX, 100);
   fx.setParameter(StepGrain::FEEL, 800);
   fx.setParameter(StepGrain::OCT, 700);
-  fx.setParameter(StepGrain::ENV, StepGrain::SEAM_1STEP);
+  fx.setParameter(StepGrain::ENV, StepGrain::SEAM_4STEP);
   fx.setParameter(StepGrain::STEPS, StepGrain::PERIOD_1STEP);
   fx.setParameter(StepGrain::SPRD, 100);
   fx.setParameter(StepGrain::MODE, StepGrain::MODE_FREQ);
   fx.setParameter(StepGrain::REVS, 50);
 
   // String Desc path (dummy-genericfx style switch tables)
-  if (std::string(fx.getParameterStrValue(StepGrain::ENV, StepGrain::SEAM_1STEP)) != "1 St")
+  if (std::string(fx.getParameterStrValue(StepGrain::ENV, StepGrain::SEAM_4STEP)) != "4 St")
     return 2;
-  if (std::string(fx.getParameterStrValue(StepGrain::STEPS, StepGrain::PERIOD_1STEP)) != "1 St")
+  if (std::string(fx.getParameterStrValue(StepGrain::ENV, StepGrain::SEAM_OFF)) != "Off")
     return 3;
-  if (std::string(fx.getParameterStrValue(StepGrain::STEPS, StepGrain::PERIOD_HALF)) != "Half")
+  if (fx.getParameterStrValue(StepGrain::ENV, 5) != nullptr)
     return 4;
-  if (std::string(fx.getParameterStrValue(StepGrain::MODE, StepGrain::MODE_VOLUME)) != "Volume")
+  if (std::string(fx.getParameterStrValue(StepGrain::STEPS, StepGrain::PERIOD_1STEP)) != "1 St")
     return 5;
-  if (std::string(fx.getParameterStrValue(StepGrain::MODE, StepGrain::MODE_FREQ)) != "Freq")
+  if (std::string(fx.getParameterStrValue(StepGrain::STEPS, StepGrain::PERIOD_HALF)) != "Half")
     return 6;
-  if (fx.getParameterStrValue(StepGrain::MIX, 100) != nullptr)
+  if (std::string(fx.getParameterStrValue(StepGrain::MODE, StepGrain::MODE_VOLUME)) != "Volume")
     return 7;
+  if (std::string(fx.getParameterStrValue(StepGrain::MODE, StepGrain::MODE_FREQ)) != "Freq")
+    return 8;
+  if (fx.getParameterStrValue(StepGrain::MIX, 100) != nullptr)
+    return 9;
 
   std::vector<float> input(kFrames * 2U, 0.f);
   std::vector<float> output(kFrames * 2U, 0.f);

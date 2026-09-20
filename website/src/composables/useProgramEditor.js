@@ -49,7 +49,7 @@ const STEP_GRAIN_PARAM_DEFAULTS = {
   MIX: { assign: "DEPTH", value: 100, min: 0, max: 100 },
   MODE: { assign: "NONE", value: 1, min: 0, max: 1 },
   STEPS: { assign: "NONE", value: 6, min: 0, max: 7 },
-  ENV: { assign: "NONE", value: 2, min: 0, max: 6 },
+  ENV: { assign: "NONE", value: 4, min: 0, max: 4 },
   SPRD: { assign: "NONE", value: 100, min: 0, max: 100 },
   REVS: { assign: "NONE", value: 50, min: 0, max: 100 },
 };

@@ -11,7 +11,7 @@
     { "name": "MIX", "role": "Depth", "detail": "Blend live input with grains. Volume: gain. Freq: crossover (LPF dry + HPF wet)" },
     { "name": "MODE", "role": "Edit", "detail": "Volume: gain mix. Freq (default): LPF on input + HPF on grains, then sum" },
     { "name": "STEPS", "role": "Edit", "detail": "Grain body length and trigger grid: 4 Bar, 2 Bar, 16 St, 8 St, 4 St, 2 St, 1 St, Half" },
-    { "name": "ENV", "role": "Edit", "detail": "Attack and release seam beyond the STEPS body (each side): Off, Half, 1 St … 16 St. Total grain = STEPS + 2×ENV" },
+    { "name": "ENV", "role": "Edit", "detail": "Attack and release seam beyond the STEPS body (each side): Off, Half, 1 St, 2 St, 4 St (default). Total grain = STEPS + 2×ENV" },
     { "name": "SPRD", "role": "Edit", "detail": "Random stereo width (0% = mono, 100% = hard L/R)" },
     { "name": "REVS", "role": "Edit", "detail": "Probability that a grain plays in reverse (0–100%)" }
   ]
