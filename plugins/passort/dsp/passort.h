@@ -10,7 +10,7 @@
  *   Top-right → LPF   (left  = cutoff, down = resonance)
  *   Center    → Tape stop
  *   Bottom-left  → Dotted-8th delay (up = depth, right = feedback HPF)
- *   Bottom-right → Beat-sync step roll (up = speed, left = buffer length)
+ *   Bottom-right → Beat-sync step roll (up = speed, left = shorter buffer)
  *
  * Prefer get_raw_input for capture (pad-up unit_render may be muted).
  */
@@ -28,6 +28,8 @@ public:
   static constexpr uint32_t kMaxBufSamples = 192000U;
   static constexpr uint32_t kMaxDelaySamples = 72000U;
   static constexpr uint32_t kMinSliceSamples = 64U;
+  // Floor for audible step-roll loops (~5.3 ms @ 48 kHz). Shorter reads as a tone.
+  static constexpr uint32_t kMinRollLoopSamples = 256U;
   static constexpr uint32_t kMinCaptureSamples = 1024U;
   static constexpr float kMinBpm = 40.f;
   static constexpr float kMaxBpm = 300.f;
@@ -249,6 +251,8 @@ public:
 
   uint8_t currentMode() const { return mode_; }
   bool isPadHeld() const { return pad_held_; }
+  uint32_t rollLoopLength() const { return loop_length_; }
+  uint32_t rollBufferLength() const { return frozen_length_; }
 
 private:
   struct SvfState
@@ -417,7 +421,6 @@ private:
     const float x_norm = fx::clip01(touch_x_ * (1.f / 1023.f));
     const float y_norm = fx::clip01(touch_y_ * (1.f / 1023.f));
     const float from_top = 1.f - y_norm;
-    const float from_right = 1.f - x_norm;
 
     cutoff_target_ = x_norm;
     // LPF: moving left closes the filter (lower cutoff).
@@ -426,9 +429,9 @@ private:
     res_target_ = from_top;
     depth_target_ = y_norm;
     fb_hpf_target_ = x_norm;
-    // Bottom-right: up = faster roll, left = longer buffer.
+    // Bottom-right: up = faster grid, right = longer buffer (corner starts mild).
     roll_speed_target_ = y_norm;
-    roll_len_target_ = from_right;
+    roll_len_target_ = x_norm;
   }
 
   void smoothParams()
@@ -575,6 +578,7 @@ private:
 
   static uint32_t rollDivisions(float speed_norm)
   {
+    // Grid: 1/2 .. 1/32 of a beat (never sub-audible on its own).
     static const uint32_t kDivs[6] = {2U, 4U, 8U, 16U, 24U, 32U};
     const float select = fx::clip01(speed_norm) * 5.0001f;
     uint32_t step = static_cast<uint32_t>(select);
@@ -585,8 +589,8 @@ private:
 
   static float bufferBeats(float len_norm)
   {
-    // Step-aligned lengths: 1/16 .. 1 beat.
-    static const float kBeats[5] = {0.0625f, 0.125f, 0.25f, 0.5f, 1.f};
+    // Step-aligned capture windows: 1/4 .. 2 beats (shortest still musical).
+    static const float kBeats[5] = {0.25f, 0.5f, 1.f, 1.5f, 2.f};
     const float select = fx::clip01(len_norm) * 4.0001f;
     uint32_t step = static_cast<uint32_t>(select);
     if (step > 4U)
@@ -598,20 +602,22 @@ private:
   {
     const float beat = static_cast<float>(fx::samplesPerBeat(bpm_, getSampleRate()));
     const float buf_beats = bufferBeats(roll_len_smooth_);
-    uint32_t length = static_cast<uint32_t>(buf_beats * beat);
-    if (length < kMinSliceSamples)
-      length = kMinSliceSamples;
-    if (length > frozen_length_ && frozen_length_ >= kMinSliceSamples)
-      length = frozen_length_;
-    if (length > captured_samples_ && captured_samples_ >= kMinSliceSamples)
-      length = captured_samples_;
+    uint32_t buffer_length = static_cast<uint32_t>(buf_beats * beat);
+    if (buffer_length < kMinRollLoopSamples)
+      buffer_length = kMinRollLoopSamples;
+    if (buffer_length > frozen_length_ && frozen_length_ >= kMinSliceSamples)
+      buffer_length = frozen_length_;
+    if (buffer_length > captured_samples_ && captured_samples_ >= kMinSliceSamples)
+      buffer_length = captured_samples_;
 
+    // Speed selects the musical grid; do not divide buffer by divisions
+    // (that produced sub-ms loops / tonal buzz at the short+fast corner).
     const uint32_t divisions = rollDivisions(roll_speed_smooth_);
-    uint32_t slice = length / divisions;
-    if (slice < kMinSliceSamples)
-      slice = kMinSliceSamples;
-    if (slice > length)
-      slice = length;
+    uint32_t slice = static_cast<uint32_t>(beat / static_cast<float>(divisions));
+    if (slice < kMinRollLoopSamples)
+      slice = kMinRollLoopSamples;
+    if (slice > buffer_length)
+      slice = buffer_length;
 
     loop_length_ = slice;
     if (frozen_length_ >= slice)
@@ -649,18 +655,30 @@ private:
     left = buf_left_[index_a] + (buf_left_[index_b] - buf_left_[index_a]) * frac;
     right = buf_right_[index_a] + (buf_right_[index_b] - buf_right_[index_a]) * frac;
 
-    const float xfade = 8.f + glue_norm_ * 96.f;
-    if (loop_pos_ < xfade)
+    // Overlapping end→start join (not fade-to-silence — that buzzes on short loops).
+    float xfade = 8.f + glue_norm_ * 96.f;
+    const float max_xfade = static_cast<float>(loop_length_) * 0.25f;
+    if (xfade > max_xfade)
+      xfade = max_xfade;
+    if (xfade > 1.f)
     {
-      const float fade = loop_pos_ / xfade;
-      left *= fade;
-      right *= fade;
-    }
-    else if (loop_pos_ > static_cast<float>(loop_length_) - xfade)
-    {
-      const float fade = (static_cast<float>(loop_length_) - loop_pos_) / xfade;
-      left *= fade < 0.f ? 0.f : fade;
-      right *= fade < 0.f ? 0.f : fade;
+      const float tail = static_cast<float>(loop_length_) - loop_pos_;
+      if (tail < xfade)
+      {
+        const float fade = tail / xfade;
+        const float secondary_pos = loop_pos_ + xfade - static_cast<float>(loop_length_);
+        const uint32_t sec_a =
+            (loop_start_ + static_cast<uint32_t>(secondary_pos)) % record_length_;
+        const uint32_t sec_b = (sec_a + 1U) % record_length_;
+        const float sec_frac =
+            secondary_pos - static_cast<float>(static_cast<uint32_t>(secondary_pos));
+        const float sec_left =
+            buf_left_[sec_a] + (buf_left_[sec_b] - buf_left_[sec_a]) * sec_frac;
+        const float sec_right =
+            buf_right_[sec_a] + (buf_right_[sec_b] - buf_right_[sec_a]) * sec_frac;
+        left = left * fade + sec_left * (1.f - fade);
+        right = right * fade + sec_right * (1.f - fade);
+      }
     }
 
     loop_pos_ += 1.f;
