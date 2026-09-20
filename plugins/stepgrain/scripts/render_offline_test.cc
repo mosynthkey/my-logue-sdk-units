@@ -1,6 +1,7 @@
 #include "stepgrain.h"
 #include "runtime.h"
 #include <cstdio>
+#include <string>
 #include <vector>
 
 int main()
@@ -18,6 +19,16 @@ int main()
   fx.setParameter(StepGrain::SPRD, 100);
   fx.setParameter(StepGrain::HPF, 0);
   fx.setParameter(StepGrain::REVS, 50);
+
+  // String Desc path (dummy-genericfx style switch tables)
+  if (std::string(fx.getParameterStrValue(StepGrain::ENV, StepGrain::SEAM_1STEP)) != "1 St")
+    return 2;
+  if (std::string(fx.getParameterStrValue(StepGrain::STEPS, StepGrain::PERIOD_1STEP)) != "1 St")
+    return 3;
+  if (std::string(fx.getParameterStrValue(StepGrain::STEPS, StepGrain::PERIOD_HALF)) != "Half")
+    return 4;
+  if (fx.getParameterStrValue(StepGrain::MIX, 100) != nullptr)
+    return 5;
 
   std::vector<float> input(kFrames * 2U, 0.f);
   std::vector<float> output(kFrames * 2U, 0.f);

@@ -69,7 +69,8 @@ public:
     SEAM_16STEP
   };
 
-  void setParameter(uint8_t index, int32_t value) override final
+  // Match dummy-genericfx: inline set/get + switch for string params.
+  inline void setParameter(uint8_t index, int32_t value) override final
   {
     switch (index)
     {
@@ -87,10 +88,12 @@ public:
         mix_ = 1.f;
       break;
     case ENV:
+      // strings type parameter, receiving index value
       seam_sel_ = static_cast<uint8_t>(
           fx::clip(static_cast<float>(value), 0.f, static_cast<float>(kNumSeams - 1U)));
       break;
     case STEPS:
+      // strings type parameter, receiving index value
       period_sel_ = static_cast<uint8_t>(
           fx::clip(static_cast<float>(value), 0.f, static_cast<float>(kNumPeriods - 1U)));
       break;
@@ -117,15 +120,46 @@ public:
     }
   }
 
-  const char *getParameterStrValue(uint8_t index, int32_t value) const override final
+  inline const char *getParameterStrValue(uint8_t index, int32_t value) const override final
   {
+    // Note: String memory must be accessible even after function returned.
+    //       It can be assumed that caller will have copied or used the string
+    //       before the next call to getParameterStrValue
     // NTS-3 string charset: A-Z a-z 0-9 space - _  (no '/')
-    static const char *period_names[kNumPeriods] = {"4Bar", "2Bar", "16St", "8St", "4St", "2St", "1St", "Half"};
-    static const char *seam_names[kNumSeams] = {"Off", "Half", "1St", "2St", "4St", "8St", "16St"};
-    if (index == STEPS && value >= 0 && value < static_cast<int32_t>(kNumPeriods))
-      return period_names[value];
-    if (index == ENV && value >= 0 && value < static_cast<int32_t>(kNumSeams))
-      return seam_names[value];
+    static const char *env_strings[kNumSeams] = {
+        "Off",
+        "Half",
+        "1 St",
+        "2 St",
+        "4 St",
+        "8 St",
+        "16 St",
+    };
+    static const char *steps_strings[kNumPeriods] = {
+        "4 Bar",
+        "2 Bar",
+        "16 St",
+        "8 St",
+        "4 St",
+        "2 St",
+        "1 St",
+        "Half",
+    };
+
+    switch (index)
+    {
+    case ENV:
+      if (value >= SEAM_OFF && value < static_cast<int32_t>(kNumSeams))
+        return env_strings[value];
+      break;
+    case STEPS:
+      if (value >= PERIOD_4BAR && value < static_cast<int32_t>(kNumPeriods))
+        return steps_strings[value];
+      break;
+    default:
+      break;
+    }
+
     return nullptr;
   }
 
