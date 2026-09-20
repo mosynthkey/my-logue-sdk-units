@@ -10,14 +10,14 @@ int main()
   std::vector<float> ram(fx.getBufferSize(), 0.f);
   fx.init(ram.data());
   fx.setTempo(120.f);
-  fx.setParameter(StepGrain::MIX, 1000);
+  fx.setParameter(StepGrain::MIX, 100);
   fx.setParameter(StepGrain::FEEL, 800);
   fx.setParameter(StepGrain::OCT, 700);
   fx.setParameter(StepGrain::ENV, StepGrain::SEAM_1STEP);
   fx.setParameter(StepGrain::STEPS, StepGrain::PERIOD_1STEP);
-  fx.setParameter(StepGrain::SPRD, 1000);
+  fx.setParameter(StepGrain::SPRD, 100);
   fx.setParameter(StepGrain::HPF, 0);
-  fx.setParameter(StepGrain::REVS, 500);
+  fx.setParameter(StepGrain::REVS, 50);
 
   std::vector<float> input(kFrames * 2U, 0.f);
   std::vector<float> output(kFrames * 2U, 0.f);

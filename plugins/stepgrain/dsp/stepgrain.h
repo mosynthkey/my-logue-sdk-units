@@ -80,7 +80,7 @@ public:
       oct_norm_ = param10BitToNorm(value);
       break;
     case MIX:
-      mix_ = value / 1000.f;
+      mix_ = value / 100.f;
       if (mix_ < 0.f)
         mix_ = 0.f;
       if (mix_ > 1.f)
@@ -95,7 +95,7 @@ public:
           fx::clip(static_cast<float>(value), 0.f, static_cast<float>(kNumPeriods - 1U)));
       break;
     case SPRD:
-      sprd_norm_ = value / 1000.f;
+      sprd_norm_ = value / 100.f;
       if (sprd_norm_ < 0.f)
         sprd_norm_ = 0.f;
       if (sprd_norm_ > 1.f)
@@ -106,7 +106,7 @@ public:
       updateHpfCoeff();
       break;
     case REVS:
-      revs_norm_ = value / 1000.f;
+      revs_norm_ = value / 100.f;
       if (revs_norm_ < 0.f)
         revs_norm_ = 0.f;
       if (revs_norm_ > 1.f)
