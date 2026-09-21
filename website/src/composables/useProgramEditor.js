@@ -32,7 +32,7 @@ export const SLOT_FX_OPTIONS = [
 ];
 
 const DEFAULT_PARAM_NAMES = [
-  "FEEL",
+  "DENS",
   "OCT",
   "MIX",
   "MODE",
@@ -44,7 +44,7 @@ const DEFAULT_PARAM_NAMES = [
 
 // Mirrors plugins/stepgrain/targets/nts-3_kaoss/header.c defaults.
 const STEP_GRAIN_PARAM_DEFAULTS = {
-  FEEL: { assign: "X", value: 1023, min: 0, max: 1023 },
+  DENS: { assign: "X", value: 1023, min: 0, max: 1023 },
   OCT: { assign: "Y", value: 512, min: 0, max: 1023 },
   MIX: { assign: "DEPTH", value: 100, min: 0, max: 100 },
   MODE: { assign: "NONE", value: 1, min: 0, max: 1 },

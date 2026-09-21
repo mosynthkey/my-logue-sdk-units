@@ -222,15 +222,15 @@ export const dspExplainById = {
   In --> Mix`,
   },
   stepgrain: {
-    en: "Live-capture granular FX. Touch freezes up to 3 s of AUDIO IN into a tempo-synced grain cloud. Depth/MIX blends live input with grains (MODE: Volume gain or Freq LPF/HPF crossover). STEPS = body/grid; ENV = seam. X/FEEL: sparse ↔ dense. Y: unison / +1 / +2 octave mix.",
-    ja: "AUDIO INを最大3秒フリーズし、テンポ同期のグレイン雲にします。Depth/MIXで原音とグレインを混ぜ（MODEはVolume音量 or Freqクロスオーバー）。STEPSで本体/グリッド、ENVでのりしろ。Xは疎↔密、Yは0/+1/+2oct。",
+    en: "Live-capture granular FX. Touch freezes up to 3 s of AUDIO IN into a tempo-synced grain cloud. Depth/MIX blends live input with grains (MODE: Volume gain or Freq LPF/HPF crossover). STEPS = body/grid; ENV = seam. X/DENS: sparse ↔ dense. Y: unison / +1 / +2 octave mix.",
+    ja: "AUDIO INを最大3秒フリーズし、テンポ同期のグレイン雲にします。Depth/MIXで原音とグレインを混ぜ（MODEはVolume音量 or Freqクロスオーバー）。STEPSで本体/グリッド、ENVでのりしろ。XはDENS（疎↔密）、Yは0/+1/+2oct。",
     mermaid: `flowchart LR
   In[Audio in] --> Ring[SDRAM max 3s]
   Touch[Touch freeze] --> Cloud[Step grain cloud]
   Ring --> Cloud
   Steps[STEPS body and grid] --> Cloud
   Env[ENV seam fades] --> Cloud
-  Feel[FEEL density] --> Cloud
+  Dens[DENS density] --> Cloud
   Cloud --> Mode[MODE Volume or Freq]
   In --> Mode
   Mode --> Mix[MIX Depth blend] --> Out[Out]`,

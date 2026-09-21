@@ -6,7 +6,7 @@
  * Live capture granular pad for NTS-3.
  *
  * Always records AUDIO IN as mono; touch freezes and granulates.
- * X/FEEL: left = sparse stitches; right = dense multi-grain wash.
+ * X/DENS: left = sparse stitches; right = dense multi-grain wash.
  * Y = octave mix (0 / +1 / +2). MIX (Depth) blends live input with grains.
  * MODE: Volume (gain) or Freq (dry LPF + wet HPF). STEPS = body/grid; ENV = seam.
  * SPRD = stereo width. REVS = reverse probability.
@@ -37,7 +37,7 @@ public:
 
   enum
   {
-    FEEL = 0U,
+    DENS = 0U,
     OCT,
     MIX,
     MODE,
@@ -80,8 +80,8 @@ public:
   {
     switch (index)
     {
-    case FEEL:
-      feel_norm_ = param10BitToNorm(value);
+    case DENS:
+      dens_norm_ = param10BitToNorm(value);
       break;
     case OCT:
       oct_norm_ = param10BitToNorm(value);
@@ -185,7 +185,7 @@ public:
     for (uint32_t sampleIndex = 0; sampleIndex < getBufferSize(); ++sampleIndex)
       allocated_buffer[sampleIndex] = 0.f;
 
-    feel_norm_ = 1.f;
+    dens_norm_ = 1.f;
     oct_norm_ = 0.5f;
     mix_ = 1.f;
     seam_sel_ = SEAM_4STEP;
@@ -245,7 +245,7 @@ public:
   {
     (void)id;
 
-    feel_norm_ = static_cast<float>(x) * (1.f / 1023.f);
+    dens_norm_ = static_cast<float>(x) * (1.f / 1023.f);
     oct_norm_ = static_cast<float>(y) * (1.f / 1023.f);
 
     if (phase == k_unit_touch_phase_ended || phase == k_unit_touch_phase_cancelled)
@@ -636,7 +636,7 @@ private:
     if (freeze_length_ < kMinCaptureSamples)
       return;
 
-    const float x = clamp01(feel_norm_);
+    const float x = clamp01(dens_norm_);
     const float smooth = x * x * (3.f - 2.f * x);
     // Sparse: 1 grain per step. Dense: up to 6 overlapping grains.
     const uint32_t grain_count = 1U + static_cast<uint32_t>(smooth * 5.f + 0.5f);
@@ -814,7 +814,7 @@ private:
 
   float *buf_ = nullptr;
 
-  float feel_norm_ = 1.f;
+  float dens_norm_ = 1.f;
   float oct_norm_ = 0.5f;
   float mix_ = 1.f;
   float sprd_norm_ = 1.f;

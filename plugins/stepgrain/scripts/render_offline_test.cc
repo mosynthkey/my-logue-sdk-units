@@ -12,7 +12,7 @@ int main()
   fx.init(ram.data());
   fx.setTempo(120.f);
   fx.setParameter(StepGrain::MIX, 100);
-  fx.setParameter(StepGrain::FEEL, 800);
+  fx.setParameter(StepGrain::DENS, 800);
   fx.setParameter(StepGrain::OCT, 700);
   fx.setParameter(StepGrain::ENV, StepGrain::SEAM_4STEP);
   fx.setParameter(StepGrain::STEPS, StepGrain::PERIOD_1STEP);
