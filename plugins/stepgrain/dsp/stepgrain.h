@@ -422,14 +422,6 @@ private:
 
   static float absf(float value) { return value < 0.f ? -value : value; }
 
-  static float hermite(float y0, float y1, float y2, float y3, float frac)
-  {
-    const float c1 = 0.5f * (y2 - y0);
-    const float c2 = y0 - 2.5f * y1 + 2.f * y2 - 0.5f * y3;
-    const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
-    return ((c3 * frac + c2) * frac + c1) * frac + y1;
-  }
-
   static float periodSixteenths(uint8_t period_sel)
   {
     static const float kPeriods[kNumPeriods] = {64.f, 32.f, 16.f, 8.f, 4.f, 2.f, 1.f, 0.5f};
@@ -442,7 +434,7 @@ private:
     return kSeams[seam_sel < kNumSeams ? seam_sel : SEAM_OFF];
   }
 
-  // Raised-cosine fade over the seam margins stored on each grain.
+  // Smoothstep seams (cheaper than raised-cosine; same 0→1→0 shape family).
   static float grainEnvelope(uint32_t age, uint32_t length, uint32_t attack, uint32_t release)
   {
     if (length <= 1U)
@@ -451,23 +443,20 @@ private:
     if (age < attack)
     {
       const float phase = static_cast<float>(age) / static_cast<float>(attack);
-      return 0.5f * (1.f - fastercosfullf(phase * 3.14159265f));
+      return phase * phase * (3.f - 2.f * phase);
     }
     if (age >= length - release)
     {
       const float phase = static_cast<float>(length - age) / static_cast<float>(release);
-      return 0.5f * (1.f - fastercosfullf(phase * 3.14159265f));
+      return phase * phase * (3.f - 2.f * phase);
     }
     return 1.f;
   }
 
-  static uint32_t wrapIndex(uint32_t index, uint32_t length)
+  static float softClip(float value)
   {
-    if (length == 0U)
-      return 0U;
-    while (index >= length)
-      index -= length;
-    return index;
+    const float x = value * 1.15f;
+    return x / (1.f + absf(x));
   }
 
   uint32_t armReadySamples() const
@@ -743,31 +732,45 @@ private:
     grains_[slot].trigger(read_pos, rate, velocity, length_samples, margin, margin, gain_left, gain_right);
   }
 
-  void sampleFrozen(float position, float &left, float &right) const
+  // Grains collapse to mono before pan, so sample once with linear interp.
+  float sampleFrozenMono(float position) const
   {
     const uint32_t length = freeze_length_ == 0U ? 1U : freeze_length_;
     float pos = position;
-    while (pos >= static_cast<float>(length))
-      pos -= static_cast<float>(length);
-    while (pos < 0.f)
-      pos += static_cast<float>(length);
+    const float length_f = static_cast<float>(length);
+    if (pos >= length_f)
+    {
+      pos -= length_f;
+      if (pos >= length_f)
+        pos -= length_f;
+      if (pos >= length_f)
+        pos -= length_f;
+    }
+    else if (pos < 0.f)
+    {
+      pos += length_f;
+      if (pos < 0.f)
+        pos += length_f;
+      if (pos < 0.f)
+        pos += length_f;
+    }
 
-    const int32_t index = static_cast<int32_t>(pos);
-    const float frac = pos - static_cast<float>(index);
-    const uint32_t i0 = wrapIndex(
-        static_cast<uint32_t>((index - 1 + static_cast<int32_t>(length)) % static_cast<int32_t>(length)),
-        length);
-    const uint32_t i1 = wrapIndex(static_cast<uint32_t>(index), length);
-    const uint32_t i2 = wrapIndex(i1 + 1U, length);
-    const uint32_t i3 = wrapIndex(i2 + 1U, length);
+    const uint32_t i1 = static_cast<uint32_t>(pos);
+    const float frac = pos - static_cast<float>(i1);
+    uint32_t i2 = i1 + 1U;
+    if (i2 >= length)
+      i2 = 0U;
 
-    const uint32_t a0 = wrapIndex(freeze_origin_ + i0, kMaxCaptureSamples);
-    const uint32_t a1 = wrapIndex(freeze_origin_ + i1, kMaxCaptureSamples);
-    const uint32_t a2 = wrapIndex(freeze_origin_ + i2, kMaxCaptureSamples);
-    const uint32_t a3 = wrapIndex(freeze_origin_ + i3, kMaxCaptureSamples);
+    uint32_t a1 = freeze_origin_ + i1;
+    if (a1 >= kMaxCaptureSamples)
+      a1 -= kMaxCaptureSamples;
+    uint32_t a2 = freeze_origin_ + i2;
+    if (a2 >= kMaxCaptureSamples)
+      a2 -= kMaxCaptureSamples;
 
-    left = hermite(buf_left_[a0], buf_left_[a1], buf_left_[a2], buf_left_[a3], frac);
-    right = hermite(buf_right_[a0], buf_right_[a1], buf_right_[a2], buf_right_[a3], frac);
+    const float y1 = (buf_left_[a1] + buf_right_[a1]) * 0.5f;
+    const float y2 = (buf_left_[a2] + buf_right_[a2]) * 0.5f;
+    return y1 + (y2 - y1) * frac;
   }
 
   void renderGrains(float &left, float &right)
@@ -775,36 +778,41 @@ private:
     left = 0.f;
     right = 0.f;
 
+    const float freeze_f = static_cast<float>(freeze_length_ == 0U ? 1U : freeze_length_);
+
     for (uint32_t grainIndex = 0; grainIndex < kMaxGrains; ++grainIndex)
     {
       Grain &grain = grains_[grainIndex];
       if (!grain.active)
         continue;
 
-      float sample_left = 0.f;
-      float sample_right = 0.f;
-      sampleFrozen(grain.read_pos, sample_left, sample_right);
-
+      const float mono = sampleFrozenMono(grain.read_pos);
       const float envelope = grainEnvelope(grain.age, grain.length, grain.attack, grain.release);
-      const float amp = grain.gain * envelope;
-      const float mono = (sample_left + sample_right) * 0.5f * amp;
-      left += mono * grain.pan_left;
-      right += mono * grain.pan_right;
+      const float amp = grain.gain * envelope * mono;
+      left += amp * grain.pan_left;
+      right += amp * grain.pan_right;
 
       grain.read_pos += grain.rate;
-      const float freeze_f = static_cast<float>(freeze_length_ == 0U ? 1U : freeze_length_);
-      while (grain.read_pos >= freeze_f)
+      if (grain.read_pos >= freeze_f)
+      {
         grain.read_pos -= freeze_f;
-      while (grain.read_pos < 0.f)
+        if (grain.read_pos >= freeze_f)
+          grain.read_pos -= freeze_f;
+      }
+      else if (grain.read_pos < 0.f)
+      {
         grain.read_pos += freeze_f;
+        if (grain.read_pos < 0.f)
+          grain.read_pos += freeze_f;
+      }
 
       ++grain.age;
       if (grain.age >= grain.length)
         grain.active = false;
     }
 
-    left = fastertanhf(left * 1.15f);
-    right = fastertanhf(right * 1.15f);
+    left = softClip(left);
+    right = softClip(right);
   }
 
   float *buf_left_ = nullptr;
