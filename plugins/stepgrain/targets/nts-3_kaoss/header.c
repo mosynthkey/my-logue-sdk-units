@@ -27,7 +27,7 @@ const __unit_header genericfx_unit_header_t unit_header = {
             // Format: min, max, center (unused), default, type, frac. bits, frac. mode, <reserved>, name
             // See common/runtime.h for type enum and unit_param_t structure
 
-            {0, 1023, 0, 1023, k_unit_param_type_none, 0, 0, 0, {"FEEL"}},
+            {0, 1023, 0, 1023, k_unit_param_type_none, 0, 0, 0, {"DENS"}},
             {0, 1023, 0, 512, k_unit_param_type_none, 0, 0, 0, {"OCT"}},
             {0, 100, 0, 100, k_unit_param_type_percent, 0, 0, 0, {"MIX"}},
 

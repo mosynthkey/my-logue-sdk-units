@@ -58,7 +58,7 @@
 
 - **StepGrain** (`stepgrain`) — fx（実験的）
   - 対応: nts-3_kaoss
-  - 直近 AUDIO IN を最大3秒フリーズ→ステップ同期グラニュラー。X=疎↔密、Y=0/+1/+2oct、Depth/MIX=原音↔グレイン。MODE=Volume/Freq、STEPS / ENV / SPRD / REVS。
+  - 直近 AUDIO IN を最大3秒フリーズ→ステップ同期グラニュラー。X=DENS（疎↔密）、Y=0/+1/+2oct、Depth/MIX=原音↔グレイン。MODE=Volume/Freq、STEPS / ENV / SPRD / REVS。
 
 - **ReGrain** (`regrain`) — fx（実験的）
   - 対応: nts-3_kaoss

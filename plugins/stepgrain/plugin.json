@@ -4,9 +4,9 @@
   "name": "StepGrain",
   "type": "fx",
   "targets": ["nts-3_kaoss"],
-  "description": "Live-capture granular pad for NTS-3. Touch freezes up to 3 s of AUDIO IN into a tempo-synced grain cloud. X/FEEL: sparse ↔ dense. Y = octave mix (0 / +1 / +2). Depth/MIX blends live input with grains (MODE: Volume or Freq). STEPS = body & grid; ENV = seam. SPRD / REVS.",
+  "description": "Live-capture granular pad for NTS-3. Touch freezes up to 3 s of AUDIO IN into a tempo-synced grain cloud. X/DENS: sparse ↔ dense. Y = octave mix (0 / +1 / +2). Depth/MIX blends live input with grains (MODE: Volume or Freq). STEPS = body & grid; ENV = seam. SPRD / REVS.",
   "params": [
-    { "name": "FEEL", "role": "X", "detail": "Left: sparse one-grain stitches. Right: dense multi-grain wash" },
+    { "name": "DENS", "role": "X", "detail": "Grain density: left = sparse one-grain stitches, right = dense multi-grain wash" },
     { "name": "OCT", "role": "Y", "detail": "Mixture of unison / +1 / +2 octave grains" },
     { "name": "MIX", "role": "Depth", "detail": "Blend live input with grains. Volume: gain. Freq: crossover (LPF dry + HPF wet)" },
     { "name": "MODE", "role": "Edit", "detail": "Volume: gain mix. Freq (default): LPF on input + HPF on grains, then sum" },
