@@ -5,7 +5,7 @@
  *
  * Live capture granular pad for NTS-3.
  *
- * Always records AUDIO IN; touch freezes and granulates.
+ * Always records AUDIO IN as mono; touch freezes and granulates.
  * X/FEEL: left = sparse stitches; right = dense multi-grain wash.
  * Y = octave mix (0 / +1 / +2). MIX (Depth) blends live input with grains.
  * MODE: Volume (gain) or Freq (dry LPF + wet HPF). STEPS = body/grid; ENV = seam.
@@ -33,7 +33,7 @@ public:
   static constexpr uint8_t kNumSeams = 5U;
   static constexpr uint8_t kNumModes = 2U;
 
-  uint32_t getBufferSize() const override final { return kMaxCaptureSamples * 2U; }
+  uint32_t getBufferSize() const override final { return kMaxCaptureSamples; }
 
   enum
   {
@@ -180,8 +180,7 @@ public:
 
   void init(float *allocated_buffer) override final
   {
-    buf_left_ = allocated_buffer;
-    buf_right_ = allocated_buffer + kMaxCaptureSamples;
+    buf_ = allocated_buffer;
 
     for (uint32_t sampleIndex = 0; sampleIndex < getBufferSize(); ++sampleIndex)
       allocated_buffer[sampleIndex] = 0.f;
@@ -202,8 +201,7 @@ public:
 
   void teardown() override final
   {
-    buf_left_ = nullptr;
-    buf_right_ = nullptr;
+    buf_ = nullptr;
   }
 
   void reset() override final
@@ -527,11 +525,10 @@ private:
 
   void recordSample(float left, float right)
   {
-    if (buf_left_ == nullptr)
+    if (buf_ == nullptr)
       return;
 
-    buf_left_[write_pos_] = left;
-    buf_right_[write_pos_] = right;
+    buf_[write_pos_] = (left + right) * 0.5f;
     ++write_pos_;
     if (write_pos_ >= kMaxCaptureSamples)
       write_pos_ = 0U;
@@ -768,8 +765,8 @@ private:
     if (a2 >= kMaxCaptureSamples)
       a2 -= kMaxCaptureSamples;
 
-    const float y1 = (buf_left_[a1] + buf_right_[a1]) * 0.5f;
-    const float y2 = (buf_left_[a2] + buf_right_[a2]) * 0.5f;
+    const float y1 = buf_[a1];
+    const float y2 = buf_[a2];
     return y1 + (y2 - y1) * frac;
   }
 
@@ -815,8 +812,7 @@ private:
     right = softClip(right);
   }
 
-  float *buf_left_ = nullptr;
-  float *buf_right_ = nullptr;
+  float *buf_ = nullptr;
 
   float feel_norm_ = 1.f;
   float oct_norm_ = 0.5f;
