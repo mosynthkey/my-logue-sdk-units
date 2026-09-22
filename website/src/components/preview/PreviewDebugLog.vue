@@ -1,20 +1,36 @@
 <script setup>
 import { ref } from "vue";
-import { previewDebugLog, usePreviewDebugLog } from "../../composables/usePreviewDebugLog.js";
+import {
+  enablePreviewDebugLog,
+  previewDebugLog,
+  usePreviewDebugLog,
+} from "../../composables/usePreviewDebugLog.js";
 
 const { lines, visible, copyLog } = usePreviewDebugLog();
 const copied = ref(false);
+const copyFailed = ref(false);
 
 async function onCopy() {
+  copied.value = false;
+  copyFailed.value = false;
   try {
-    await copyLog();
-    copied.value = true;
-    window.setTimeout(() => {
-      copied.value = false;
-    }, 2000);
+    const ok = await copyLog();
+    if (ok) {
+      copied.value = true;
+      window.setTimeout(() => {
+        copied.value = false;
+      }, 2000);
+      return;
+    }
+    copyFailed.value = true;
   } catch (error) {
+    copyFailed.value = true;
     previewDebugLog("error", "Copy failed", error);
   }
+}
+
+function onEnable() {
+  enablePreviewDebugLog("panel");
 }
 </script>
 
@@ -25,15 +41,36 @@ async function onCopy() {
   >
     <header class="preview-debug__head">
       <h3>Preview debug log</h3>
-      <v-btn
-        variant="tonal"
-        prepend-icon="mdi-content-copy"
-        @click="onCopy"
-      >
-        {{ copied ? "Copied" : "Copy log" }}
-      </v-btn>
+      <div class="preview-debug__actions">
+        <v-btn
+          v-if="lines.length === 0"
+          variant="tonal"
+          size="small"
+          @click="onEnable"
+        >
+          Refresh
+        </v-btn>
+        <v-btn
+          variant="tonal"
+          size="small"
+          prepend-icon="mdi-content-copy"
+          :disabled="lines.length === 0"
+          @click="onCopy"
+        >
+          {{ copied ? "Copied" : copyFailed ? "Copy failed — select text" : "Copy log" }}
+        </v-btn>
+      </div>
     </header>
-    <pre class="preview-debug__body"><code
+    <p
+      v-if="lines.length === 0"
+      class="preview-debug__empty"
+    >
+      Waiting for preview events. On iOS open with <code>?previewDebug</code>, tap Start, then Copy log.
+    </p>
+    <pre
+      v-else
+      class="preview-debug__body"
+    ><code
       v-for="(line, lineIndex) in lines"
       :key="lineIndex"
       class="preview-debug__line"

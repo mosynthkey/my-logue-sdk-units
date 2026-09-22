@@ -1,6 +1,6 @@
 import { computed, ref } from "vue";
 
-const MAX_LOG_LINES = 80;
+const MAX_LOG_LINES = 120;
 const lines = ref([]);
 const enabled = ref(false);
 
@@ -30,10 +30,17 @@ function formatDetail(detail) {
 }
 
 export function initPreviewDebugLog() {
-  if (enabled.value || typeof window === "undefined") {
+  if (typeof window === "undefined") {
     return;
   }
-  enabled.value = detectDebugEnabled();
+  if (!enabled.value) {
+    enabled.value = detectDebugEnabled();
+  }
+
+  if (window.__previewDebugHooksInstalled) {
+    return;
+  }
+  window.__previewDebugHooksInstalled = true;
 
   const originalConsoleError = console.error.bind(console);
   console.error = (...args) => {
@@ -48,6 +55,15 @@ export function initPreviewDebugLog() {
   window.addEventListener("unhandledrejection", (event) => {
     previewDebugLog("error", formatDetail(event.reason) || "Unhandled promise rejection");
   });
+}
+
+export function enablePreviewDebugLog(reason = "manual") {
+  enabled.value = true;
+  previewDebugLog("info", "Preview debug log enabled", { reason });
+}
+
+export function isPreviewDebugEnabled() {
+  return enabled.value;
 }
 
 export function previewDebugLog(kind, message, detail) {
@@ -67,24 +83,67 @@ export function previewDebugLog(kind, message, detail) {
   }
 }
 
+export function formatPreviewDebugLogText() {
+  return lines.value
+    .slice()
+    .reverse()
+    .map((line) => `${line.at} [${line.kind}] ${line.message}`)
+    .join("\n");
+}
+
 export function usePreviewDebugLog() {
   initPreviewDebugLog();
 
-  const visible = computed(() => enabled.value && lines.value.length > 0);
+  const visible = computed(() => enabled.value);
 
-  function copyLog() {
-    const payload = lines.value
-      .slice()
-      .reverse()
-      .map((line) => `${line.at} [${line.kind}] ${line.message}`)
-      .join("\n");
-    return navigator.clipboard?.writeText(payload);
+  async function copyLog() {
+    const payload = formatPreviewDebugLogText();
+    if (!payload) {
+      return false;
+    }
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(payload);
+        return true;
+      } catch {
+        // Fall through to execCommand / Share on iOS when permission is denied.
+      }
+    }
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ text: payload });
+        return true;
+      } catch {
+        // User cancel or unsupported share payload — try textarea fallback.
+      }
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = payload;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "0";
+    textarea.style.top = "0";
+    textarea.style.opacity = "0";
+    document.body.append(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, payload.length);
+    let copied = false;
+    try {
+      copied = document.execCommand("copy");
+    } catch {
+      copied = false;
+    }
+    textarea.remove();
+    return copied;
   }
 
   return {
     lines,
     visible,
+    enabled,
     copyLog,
+    enablePreviewDebugLog,
     previewDebugLog,
   };
 }
