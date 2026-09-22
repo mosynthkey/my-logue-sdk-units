@@ -1,6 +1,7 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { paintXypad, xyPadPointFromEvent } from "../../preview/geometry.js";
+import { observeElementSize } from "../../preview/observeSize.js";
 
 const props = defineProps({
   holdEnabled: {
@@ -14,7 +15,7 @@ const emit = defineEmits(["pointer-down", "pointer-move", "pointer-up"]);
 const canvasEl = ref(null);
 const lastPointer = ref(null);
 let marker = null;
-let resizeObserver = null;
+let stopObservingSize = null;
 
 function redraw() {
   const canvas = canvasEl.value;
@@ -72,19 +73,13 @@ defineExpose({
 });
 
 onMounted(() => {
-  const canvas = canvasEl.value;
-  if (canvas && typeof ResizeObserver === "function") {
-    resizeObserver = new ResizeObserver(() => {
-      redraw();
-    });
-    resizeObserver.observe(canvas);
-  }
+  stopObservingSize = observeElementSize(canvasEl.value, redraw);
   redraw();
 });
 
 onBeforeUnmount(() => {
-  resizeObserver?.disconnect();
-  resizeObserver = null;
+  stopObservingSize?.();
+  stopObservingSize = null;
 });
 </script>
 

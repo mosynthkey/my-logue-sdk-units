@@ -1,4 +1,5 @@
 import { computed, ref } from "vue";
+import { isBenignResizeObserverMessage } from "../preview/observeSize.js";
 
 const MAX_LOG_LINES = 120;
 const lines = ref([]);
@@ -44,12 +45,21 @@ export function initPreviewDebugLog() {
 
   const originalConsoleError = console.error.bind(console);
   console.error = (...args) => {
-    previewDebugLog("error", args.map((arg) => formatDetail(arg)).join(" "));
+    const text = args.map((arg) => formatDetail(arg)).join(" ");
+    if (!isBenignResizeObserverMessage(text)) {
+      previewDebugLog("error", text);
+    }
     originalConsoleError(...args);
   };
 
   window.addEventListener("error", (event) => {
-    previewDebugLog("error", event.message || "Unhandled error");
+    const message = event.message || "Unhandled error";
+    if (isBenignResizeObserverMessage(message)) {
+      // Browsers report this as window.onerror; it is not an app failure.
+      event.preventDefault();
+      return;
+    }
+    previewDebugLog("error", message);
   });
 
   window.addEventListener("unhandledrejection", (event) => {

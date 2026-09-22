@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "../../composables/useI18n.js";
+import { observeElementSize } from "../../preview/observeSize.js";
 
 const props = defineProps({
   enabled: {
@@ -48,7 +49,7 @@ let pointerMidi = null;
 let pointerX = 0;
 let pointerY = 0;
 let edgeScrollFrame = 0;
-let resizeObserver = null;
+let stopObservingSize = null;
 let didInitialScroll = false;
 const typingMidis = new Map();
 
@@ -287,18 +288,17 @@ function scrollToDefault() {
 
 function observeWrap() {
   const wrap = wrapEl.value;
-  if (!wrap || typeof ResizeObserver !== "function") {
+  if (!wrap) {
     scrollToDefault();
     return;
   }
-  resizeObserver?.disconnect();
-  resizeObserver = new ResizeObserver(() => {
+  stopObservingSize?.();
+  stopObservingSize = observeElementSize(wrap, () => {
     if (!didInitialScroll) {
       scrollToDefault();
     }
     updateOctaveState();
   });
-  resizeObserver.observe(wrap);
   scrollToDefault();
 }
 
@@ -388,8 +388,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener("keydown", onTypingDown);
   document.removeEventListener("keyup", onTypingUp);
-  resizeObserver?.disconnect();
-  resizeObserver = null;
+  stopObservingSize?.();
+  stopObservingSize = null;
   releaseAllNotes();
 });
 </script>
