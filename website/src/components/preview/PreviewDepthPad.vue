@@ -1,6 +1,7 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { depthPadPointFromEvent, paintDepthPad } from "../../preview/geometry.js";
+import { observeElementSize } from "../../preview/observeSize.js";
 
 const props = defineProps({
   depthNormalized: {
@@ -13,7 +14,7 @@ const emit = defineEmits(["update:depth"]);
 
 const canvasEl = ref(null);
 const isDragging = ref(false);
-let resizeObserver = null;
+let stopObservingSize = null;
 
 function markerYFromDepth(depthNormalized) {
   const canvas = canvasEl.value;
@@ -74,19 +75,13 @@ watch(() => props.depthNormalized, () => {
 });
 
 onMounted(() => {
-  const canvas = canvasEl.value;
-  if (canvas && typeof ResizeObserver === "function") {
-    resizeObserver = new ResizeObserver(() => {
-      redraw();
-    });
-    resizeObserver.observe(canvas);
-  }
+  stopObservingSize = observeElementSize(canvasEl.value, redraw);
   redraw();
 });
 
 onBeforeUnmount(() => {
-  resizeObserver?.disconnect();
-  resizeObserver = null;
+  stopObservingSize?.();
+  stopObservingSize = null;
 });
 </script>
 

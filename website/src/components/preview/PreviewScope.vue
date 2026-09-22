@@ -16,7 +16,6 @@ const props = defineProps({
 const timeCanvasEl = ref(null);
 const frequencyCanvasEl = ref(null);
 let animationFrame = 0;
-let resizeObserver = null;
 
 function drawFrame() {
   const snapshot = props.readSnapshot();
@@ -44,22 +43,6 @@ function stopLoop() {
   }
 }
 
-function observeCanvases() {
-  if (typeof ResizeObserver !== "function") {
-    return;
-  }
-  resizeObserver?.disconnect();
-  resizeObserver = new ResizeObserver(() => {
-    drawFrame();
-  });
-  if (timeCanvasEl.value) {
-    resizeObserver.observe(timeCanvasEl.value);
-  }
-  if (frequencyCanvasEl.value) {
-    resizeObserver.observe(frequencyCanvasEl.value);
-  }
-}
-
 watch(() => props.enabled, (enabled) => {
   if (enabled) {
     startLoop();
@@ -69,7 +52,7 @@ watch(() => props.enabled, (enabled) => {
 });
 
 onMounted(() => {
-  observeCanvases();
+  // Continuous rAF already remeasures canvas size each frame — no ResizeObserver.
   if (props.enabled) {
     startLoop();
   }
@@ -77,8 +60,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopLoop();
-  resizeObserver?.disconnect();
-  resizeObserver = null;
 });
 </script>
 
