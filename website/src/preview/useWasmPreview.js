@@ -1,4 +1,4 @@
-import { computed, ref, shallowRef } from "vue";
+import { computed, nextTick, ref, shallowRef } from "vue";
 import { unlockAudioSessionSync } from "../composables/useAudioSession.js";
 import { previewDebugLog } from "../composables/usePreviewDebugLog.js";
 import { defaultDrySourceId, DRY_SOURCES, isDrySourceId } from "./drySources.js";
@@ -344,8 +344,16 @@ export function useWasmPreview(previewShellRef) {
             awaitingWasmTap.value = false;
             resolve();
           };
-          const captureTarget = previewShellRef?.value ?? null;
-          session.setGestureCapture(true, captureTarget);
+          void nextTick(() => {
+            if (generation !== previewGeneration.value || !session) {
+              return;
+            }
+            const captureTarget = previewShellRef?.value ?? null;
+            if (!captureTarget) {
+              previewDebugLog("warn", "Gesture capture target missing — using document body");
+            }
+            session.setGestureCapture(true, captureTarget ?? document.body);
+          });
         });
         pendingTapFinish = null;
         delete window.__previewGestureDone;
