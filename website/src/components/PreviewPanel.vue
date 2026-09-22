@@ -7,6 +7,10 @@ import PreviewKnob from "./preview/PreviewKnob.vue";
 import PreviewScope from "./preview/PreviewScope.vue";
 import PreviewXyPad from "./preview/PreviewXyPad.vue";
 import { useWasmPreview } from "../preview/useWasmPreview.js";
+import {
+  enablePreviewDebugLog,
+  usePreviewDebugLog,
+} from "../composables/usePreviewDebugLog.js";
 import { useI18n } from "../composables/useI18n.js";
 
 const props = defineProps({
@@ -20,6 +24,7 @@ const props = defineProps({
   },
 });
 const { t } = useI18n();
+const { enabled: previewDebugEnabled } = usePreviewDebugLog();
 
 const xyPadRef = ref(null);
 
@@ -105,6 +110,9 @@ function handleHoldToggle() {
   onHoldToggle(lastPointer);
 }
 
+function showPreviewDebug() {
+  enablePreviewDebugLog("tap-to-start-ui");
+}
 </script>
 
 <template>
@@ -255,7 +263,24 @@ function handleHoldToggle() {
         />
       </div>
 
-      <PreviewDebugLog />
     </div>
+
+    <!-- Keep debug UI outside the gesture-capture shell so the iframe cannot swallow taps. -->
+    <p
+      v-if="awaitingWasmTap && !previewDebugEnabled"
+      class="preview-debug-hint"
+    >
+      <button
+        type="button"
+        class="preview-debug-hint__button"
+        @click="showPreviewDebug"
+      >
+        Show preview debug log
+      </button>
+      <span class="preview-debug-hint__or">or open with</span>
+      <code>?previewDebug</code>
+    </p>
+
+    <PreviewDebugLog />
   </section>
 </template>

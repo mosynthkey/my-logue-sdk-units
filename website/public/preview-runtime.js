@@ -905,6 +905,10 @@
         event.preventDefault();
       }
 
+      log("info", "Start gesture received in preview iframe", {
+        type: event.type,
+        pointerType: event.pointerType || null,
+      });
       unlockAudioSession();
       if (!startMainFromGesture()) {
         // Keep listeners armed — a premature tap must not consume the gesture.

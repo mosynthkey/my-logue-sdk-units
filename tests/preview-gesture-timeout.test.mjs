@@ -8,6 +8,7 @@ const websiteRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../
 const runtimePath = path.join(websiteRoot, "public/preview-runtime.js");
 const sessionPath = path.join(websiteRoot, "src/preview/PreviewSession.js");
 const previewHookPath = path.join(websiteRoot, "src/preview/useWasmPreview.js");
+const debugLogPath = path.join(websiteRoot, "src/composables/usePreviewDebugLog.js");
 
 test("AudioWorklet timeout is not armed while waiting for the start tap", () => {
   const source = fs.readFileSync(runtimePath, "utf8");
@@ -32,13 +33,23 @@ test("gesture arming survives a premature tap and stays listening", () => {
   );
 });
 
-test("gesture capture iframe is laid out inside the tap target", () => {
+test("gesture capture keeps the iframe on document.body and syncs fixed bounds", () => {
   const sessionSource = fs.readFileSync(sessionPath, "utf8");
   const hookSource = fs.readFileSync(previewHookPath, "utf8");
 
-  assert.match(sessionSource, /position:absolute/);
-  assert.match(sessionSource, /installGestureCaptureSync/);
+  assert.match(sessionSource, /Never move the iframe node/);
+  assert.match(sessionSource, /position:fixed/);
+  assert.match(sessionSource, /getBoundingClientRect/);
   assert.match(sessionSource, /visualViewport/);
+  assert.doesNotMatch(sessionSource, /position:absolute/);
+  assert.doesNotMatch(sessionSource, /captureTarget\.append\(this\.iframe\)/);
   assert.match(hookSource, /nextTick/);
-  assert.match(hookSource, /captureTarget \?\? document\.body/);
+  assert.match(hookSource, /previewShellRef/);
+});
+
+test("preview debug log can be enabled without an error", () => {
+  const source = fs.readFileSync(debugLogPath, "utf8");
+  assert.match(source, /export function enablePreviewDebugLog/);
+  assert.match(source, /previewDebug/);
+  assert.match(source, /navigator\.share/);
 });
