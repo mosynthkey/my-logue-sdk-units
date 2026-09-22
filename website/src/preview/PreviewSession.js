@@ -12,6 +12,18 @@ const HIDDEN_FRAME_STYLE = [
   "z-index:-1",
 ].join(";");
 
+const CAPTURE_FRAME_STYLE = [
+  "position:absolute",
+  "inset:0",
+  "width:100%",
+  "height:100%",
+  "opacity:0",
+  "border:0",
+  "pointer-events:auto",
+  "z-index:1000",
+  "background:transparent",
+].join(";");
+
 function assetUrl(relativePath) {
   return new URL(relativePath, window.location.href).href;
 }
@@ -49,6 +61,7 @@ export class PreviewSession {
   constructor() {
     this.iframe = null;
     this.gestureCaptureTarget = null;
+    this.gestureCaptureCleanups = [];
   }
 
   get host() {
@@ -98,31 +111,117 @@ export class PreviewSession {
     });
   }
 
+  clearGestureCaptureSync() {
+    for (const cleanup of this.gestureCaptureCleanups) {
+      try {
+        cleanup();
+      } catch {
+        // Ignore cleanup errors during teardown.
+      }
+    }
+    this.gestureCaptureCleanups = [];
+  }
+
+  // Keep the invisible capture frame covering the tap target even when mobile
+  // chrome resizes or the user scrolls mid-"Tap to start".
+  installGestureCaptureSync(captureTarget) {
+    this.clearGestureCaptureSync();
+
+    const previousPosition = captureTarget.style.position;
+    const computedPosition = window.getComputedStyle(captureTarget).position;
+    if (computedPosition === "static") {
+      captureTarget.style.position = "relative";
+      this.gestureCaptureCleanups.push(() => {
+        captureTarget.style.position = previousPosition;
+      });
+    }
+
+    const syncFrame = () => {
+      if (!this.iframe || this.gestureCaptureTarget !== captureTarget) {
+        return;
+      }
+      if (this.iframe.parentElement !== captureTarget) {
+        captureTarget.append(this.iframe);
+      }
+      this.iframe.style.cssText = CAPTURE_FRAME_STYLE;
+    };
+
+    syncFrame();
+
+    const onViewportChange = () => {
+      syncFrame();
+    };
+    window.addEventListener("scroll", onViewportChange, true);
+    window.addEventListener("resize", onViewportChange);
+    this.gestureCaptureCleanups.push(() => {
+      window.removeEventListener("scroll", onViewportChange, true);
+      window.removeEventListener("resize", onViewportChange);
+    });
+
+    const visualViewport = window.visualViewport;
+    if (visualViewport) {
+      visualViewport.addEventListener("resize", onViewportChange);
+      visualViewport.addEventListener("scroll", onViewportChange);
+      this.gestureCaptureCleanups.push(() => {
+        visualViewport.removeEventListener("resize", onViewportChange);
+        visualViewport.removeEventListener("scroll", onViewportChange);
+      });
+    }
+  }
+
   setGestureCapture(enabled, captureTarget = null) {
     if (!this.iframe) {
       return;
     }
 
+    this.clearGestureCaptureSync();
     this.gestureCaptureTarget = enabled ? captureTarget : null;
     if (!enabled || !captureTarget) {
+      if (this.iframe.parentElement !== document.body) {
+        document.body.append(this.iframe);
+      }
       this.iframe.style.cssText = HIDDEN_FRAME_STYLE;
       this.host?.disarmGestureStart?.();
       return;
     }
 
-    const bounds = captureTarget.getBoundingClientRect();
-    this.iframe.style.cssText = [
-      "position:fixed",
-      `left:${Math.max(0, bounds.left)}px`,
-      `top:${Math.max(0, bounds.top)}px`,
-      `width:${Math.max(1, bounds.width)}px`,
-      `height:${Math.max(1, bounds.height)}px`,
-      "opacity:0",
-      "border:0",
-      "pointer-events:auto",
-      "z-index:1000",
-      "background:transparent",
-    ].join(";");
+    // document.body has no useful containing block for inset:0 — use the viewport.
+    if (captureTarget === document.body || captureTarget === document.documentElement) {
+      if (this.iframe.parentElement !== document.body) {
+        document.body.append(this.iframe);
+      }
+      const syncViewportFrame = () => {
+        if (!this.iframe || this.gestureCaptureTarget !== captureTarget) {
+          return;
+        }
+        this.iframe.style.cssText = [
+          "position:fixed",
+          "left:0",
+          "top:0",
+          "width:100vw",
+          "height:100vh",
+          "opacity:0",
+          "border:0",
+          "pointer-events:auto",
+          "z-index:1000",
+          "background:transparent",
+        ].join(";");
+      };
+      syncViewportFrame();
+      window.addEventListener("resize", syncViewportFrame);
+      this.gestureCaptureCleanups.push(() => {
+        window.removeEventListener("resize", syncViewportFrame);
+      });
+      const visualViewport = window.visualViewport;
+      if (visualViewport) {
+        visualViewport.addEventListener("resize", syncViewportFrame);
+        this.gestureCaptureCleanups.push(() => {
+          visualViewport.removeEventListener("resize", syncViewportFrame);
+        });
+      }
+    } else {
+      this.installGestureCaptureSync(captureTarget);
+    }
 
     this.host?.armGestureStart?.(() => {
       this.setGestureCapture(false);

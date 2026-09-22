@@ -39,12 +39,21 @@ export function unlockAudioSessionSync() {
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   if (AudioContextClass) {
     const unlockContext = new AudioContextClass();
+    try {
+      const silentBuffer = unlockContext.createBuffer(1, 1, unlockContext.sampleRate);
+      const silentSource = unlockContext.createBufferSource();
+      silentSource.buffer = silentBuffer;
+      silentSource.connect(unlockContext.destination);
+      silentSource.start(0);
+    } catch {
+      // Resume alone still helps when buffer scheduling is unavailable.
+    }
     if (unlockContext.state === "suspended") {
-      unlockContext.resume();
+      void unlockContext.resume();
     }
     window.setTimeout(() => {
       if (unlockContext.state !== "closed") {
-        unlockContext.close();
+        void unlockContext.close();
       }
     }, 1000);
   }

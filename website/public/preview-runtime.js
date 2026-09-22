@@ -706,20 +706,30 @@
     audioWaiter = null;
   }
 
+  function clearAudioWaiterTimeout() {
+    window.clearTimeout(audioTimeout);
+    audioTimeout = 0;
+  }
+
   function restartAudioWaiterTimeout() {
     if (!audioWaiter) {
       return;
     }
-    window.clearTimeout(audioTimeout);
+    clearAudioWaiterTimeout();
     audioTimeout = window.setTimeout(() => {
       const coiHint = window.crossOriginIsolated
         ? ""
         : " Audio isolation is unavailable in this browser tab.";
-      rejectAudioWaiter(new Error(`Preview timed out waiting for AudioWorklet.${coiHint}`));
+      const error = new Error(`Preview timed out waiting for AudioWorklet.${coiHint}`);
+      log("error", error.message);
+      rejectAudioWaiter(error);
     }, PREVIEW_TIMEOUT_MS);
   }
 
-  function createAudioWaiter() {
+  // Start the AudioWorklet timeout only once audio init is actually running.
+  // With deferMain (mobile), configureAndLoad finishes long before the user
+  // taps — arming the timer there falsely times out idle "Tap to start" waits.
+  function createAudioWaiter({ armTimeout = true } = {}) {
     let resolve;
     let reject;
     const promise = new Promise((res, rej) => {
@@ -727,7 +737,9 @@
       reject = rej;
     });
     audioWaiter = { promise, resolve, reject };
-    restartAudioWaiterTimeout();
+    if (armTimeout) {
+      restartAudioWaiterTimeout();
+    }
     return promise;
   }
 
@@ -850,12 +862,21 @@
       return;
     }
     const unlockContext = new AudioContextClass();
+    try {
+      const silentBuffer = unlockContext.createBuffer(1, 1, unlockContext.sampleRate);
+      const silentSource = unlockContext.createBufferSource();
+      silentSource.buffer = silentBuffer;
+      silentSource.connect(unlockContext.destination);
+      silentSource.start(0);
+    } catch {
+      // Some browsers reject zero-length schedules; resume alone is still useful.
+    }
     if (unlockContext.state === "suspended") {
-      unlockContext.resume();
+      void unlockContext.resume();
     }
     window.setTimeout(() => {
       if (unlockContext.state !== "closed") {
-        unlockContext.close();
+        void unlockContext.close();
       }
     }, 1000);
     log("info", "Audio session unlocked");
@@ -884,17 +905,19 @@
         event.preventDefault();
       }
 
-      disarmGestureStart();
       unlockAudioSession();
       if (!startMainFromGesture()) {
+        // Keep listeners armed — a premature tap must not consume the gesture.
         log("warn", "Tap ignored — wasm not ready yet");
         return;
       }
-      onGestureDone?.();
+      const finish = gestureFinish;
+      disarmGestureStart();
+      finish?.();
     };
 
-    document.addEventListener("pointerdown", gestureListener, { once: true });
-    document.addEventListener("keydown", gestureListener, { once: true });
+    document.addEventListener("pointerdown", gestureListener);
+    document.addEventListener("keydown", gestureListener);
   }
 
   function startMainFromGesture() {
@@ -907,6 +930,7 @@
       return true;
     }
 
+    // AudioWorklet bootstrap begins here — start the wait clock now, not at load.
     restartAudioWaiterTimeout();
     if (!window.crossOriginIsolated) {
       log(
@@ -928,6 +952,7 @@
         return true;
       }
       moduleRef.__previewMainStarted = false;
+      clearAudioWaiterTimeout();
       log("error", "Module._main(0, 0) failed", error?.message || String(error));
       return false;
     }
@@ -964,7 +989,10 @@
       const baseUrl = wasmBaseUrl(wasmHref);
       const cacheToken = String(Date.now());
       const jsUrl = withCacheToken(wasmJsUrl(wasmHref), cacheToken);
-      const audioReady = createAudioWaiter();
+      // When main is deferred until a tap, do not arm the AudioWorklet timeout yet.
+      const audioReady = createAudioWaiter({ armTimeout: !deferMain });
+      // Avoid an unhandled rejection if the waiter fails before mount awaits it.
+      void audioReady.catch(() => {});
 
       const moduleConfig = {
         locateFile: (path) => withCacheToken(new URL(path, baseUrl).href, cacheToken),
