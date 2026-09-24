@@ -66,7 +66,7 @@ const __unit_header genericfx_unit_header_t unit_header = {
             {0, 1023, 0, 512, k_unit_param_type_none, 0, 0, 0, {"TIME"}},
             {0, 1023, 0, 490, k_unit_param_type_none, 0, 0, 0, {"ACID"}},
             {0, 2, 0, 1, k_unit_param_type_strings, 0, 0, 0, {"OCT"}},
-            {0, 1023, 0, 280, k_unit_param_type_none, 0, 0, 0, {"DRV"}},
+            {24, 48, 36, 36, k_unit_param_type_midi_note, 0, 0, 0, {"ROOT"}},
             {0, 7, 0, 4, k_unit_param_type_strings, 0, 0, 0, {"MODE"}}},
     },
     .default_mappings = {
@@ -76,7 +76,7 @@ const __unit_header genericfx_unit_header_t unit_header = {
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 512},
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 490},
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 2, 1},
-        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 280},
+        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 24, 48, 36},
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 7, 4},
     },
 };
