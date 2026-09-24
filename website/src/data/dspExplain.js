@@ -424,6 +424,15 @@ export const dspExplainById = {
   Subs --> Pan
   Pan --> Mix[Sub mix and norm] --> Out[Out]`,
   },
+  acidtouch: {
+    en: "New KAOCID. Tap rolls a 16-step acid phrase (MUT mode or a hold mutates ~25%). Saw/square, fixed-time slide, accent velocity 118 vs 72, then a 4-pole ladder (X cutoff, Y resonance) and soft drive. Audio in is replaced. The original Kaocid unit is unchanged.",
+    ja: "新生KAOCIDです。タップで16ステップのアシッドフレーズを再生成（MUT、または長押しで約25%変異）。ソー／矩形、固定時間スライド、アクセント118／通常72、4ポールラダー（Xカットオフ、Yレゾナンス）とソフトドライブ。入力は置き換え。既存Kaocidは残しています。",
+    mermaid: `flowchart LR
+  Touch[Touch NEW or MUT] --> Seq[16-step phrase]
+  Seq --> VCO[Saw or square and slide]
+  VCO --> VCF[Ladder cutoff and res]
+  VCF --> VCA[Accent VCA] --> Drive[Soft drive] --> Out[Out]`,
+  },
   kaocid: {
     en: "TB-303-style mono acid: each tap advances a 16-step phrase seed (pad XY is cutoff/resonance only, not the seed). VCO (saw/square) → gsynth-style VCF with accent sweep → VCA, then dry/wet.",
     ja: "TB-303風モノアシッドです。タップするたびに16ステップフレーズの種が進み（パッド位置はカットオフ／レゾナンスのみ）、ソー／矩形→VCF（アクセント掃引）→VCAの順でドライ／ウェットします。",

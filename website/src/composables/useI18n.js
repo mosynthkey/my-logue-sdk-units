@@ -4,6 +4,7 @@ const I18N_KEY = Symbol("i18n");
 const STORAGE_KEY = "logue-sdk-preview-language";
 
 export const japanesePluginDescriptions = {
+  acidtouch: "新生KAOCIDです。タップで303風16ステップを生成し、XYはカットオフとレゾナンスだけを演奏します。DENは密度、ACIDはアクセントとスライド、MODEはソー／矩形とGate／Latch／Thru／Mutateです。Audio Inは置き換えます。既存のKaocidはそのまま残しています。",
   airfm: "Alesis airSynthに着想を得た、FM効果音シンセです。Xはキャリア周波数（CARR）、Yはモジュレータ周波数（MOD）です。",
   airhorn: "AirHornを鳴らします。 Pitch Modeでピッチ固定か、鍵盤/Pitchパラメーター合わせるかを決められます。",
   amentime: "合成した1小節のamen風ブレイクを、ホストBPMに合わせてスライス再生します。オリジナル録音は入っていません。パッドを押しているあいだ、小節頭からステップ同期で再生（タップ位置は開始16分を決めません）。Xはリバース確率、Yはグリッド（1/4〜1/32）、STRTはEditで開始オフセット。手元のWAVはWavSliceを使います。",
