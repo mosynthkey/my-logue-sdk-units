@@ -1,3 +1,8 @@
+/*
+ * AcidTouch host probe. Copyright (C) 2026 acidtouch contributors
+ * SPDX-License-Identifier: GPL-3.0-only
+ */
+
 #define ACIDTOUCH_OFFLINE_TEST
 
 #include "acidtouch.h"

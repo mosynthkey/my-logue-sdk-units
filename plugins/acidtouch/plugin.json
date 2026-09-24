@@ -1,5 +1,6 @@
 {
   "id": "acidtouch",
+  "license": "GPL-3.0-only",
   "experimental": true,
   "name": "AcidTouch",
   "type": "synth",

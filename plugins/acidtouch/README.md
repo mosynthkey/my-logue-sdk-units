@@ -24,7 +24,9 @@ Phrase rules: 16 steps, rest / note / accent / slide, at least one note, accent 
 
 ## License
 
-This plugin is BSD 3-Clause, same as the rest of this repository. It is a clean-room reimplementation. GPL sources were not copied or linked.
+AcidTouch is **GPL-3.0-only**. See `LICENSE` in this directory. The rest of this repository stays BSD 3-Clause. NTS-3 unit boilerplate derived from the KORG logue SDK keeps its BSD 3-Clause notice in those files; the combined AcidTouch unit is distributed under GPL-3.0-only.
+
+The voice and phrase generator are a clean-room reimplementation. Upstream GPL sources were not copied into this tree. They are behavior references:
 
 Behavior and parameter meaning follow these public projects:
 

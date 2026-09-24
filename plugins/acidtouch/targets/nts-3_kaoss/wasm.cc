@@ -1,3 +1,7 @@
+// AcidTouch WASM preview. Copyright (C) 2026 acidtouch contributors.
+// SPDX-License-Identifier: GPL-3.0-only
+// KORG logue SDK preview boilerplate in this file remains BSD 3-Clause.
+// The combined AcidTouch unit is distributed under GPL-3.0-only.
 // reference: https://emscripten.org/docs/api_reference/wasm_audio_worklets.html#wasm-audio-worklets
 // example code: https://github.com/emscripten-core/emscripten/tree/main/test/webaudio
 

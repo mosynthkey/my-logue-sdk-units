@@ -1,4 +1,11 @@
 /*
+    AcidTouch unit header. Copyright (C) 2026 acidtouch contributors.
+    SPDX-License-Identifier: GPL-3.0-only
+
+    The KORG logue SDK boilerplate below remains under the BSD 3-Clause
+    License. The combined AcidTouch unit is distributed under GPL-3.0-only.
+    See plugins/acidtouch/LICENSE.
+
     BSD 3-Clause License
 
     Copyright (c) 2023, KORG INC.

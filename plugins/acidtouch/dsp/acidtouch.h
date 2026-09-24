@@ -1,18 +1,28 @@
 #pragma once
 
 /*
- * File: acidtouch.h
+ * AcidTouch — NTS-3 genericfx acid voice with an internal 16-step phrase
+ * generator. Copyright (C) 2026 acidtouch contributors
  *
- * NTS-3 genericfx acid voice with an internal 16-step phrase generator.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
  * Touch rolls a new pattern (or mutates one). Pad X/Y are cutoff and
  * resonance only. Audio in is replaced; this slot is the oscillator.
  *
  * Phrase grammar follows the public TB-3PO contract (density, accent,
  * slide, octave, 50% gate, accent velocity 118 / normal 72, fixed-time
- * exponential slide, reproducible seed). Sound chain follows the
- * schwung-303 / Open303 split: note, accent, and slide drive one mono
- * voice. This file is a clean-room reimplementation for the BSD-licensed
- * tree — no GPL sources are copied. See plugins/acidtouch/README.md.
+ * exponential slide, reproducible seed). The voice is a clean-room
+ * reimplementation: no GPL upstream sources are copied. See README.md.
  *
  * Pitch uses fastpow2f via fx::noteToHz. Envelope and filter coefficients
  * near 1 use a Taylor exp, not fasterexpf (biased at 0).

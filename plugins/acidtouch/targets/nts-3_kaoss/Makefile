@@ -1,3 +1,6 @@
+# AcidTouch build. SPDX-License-Identifier: GPL-3.0-only
+# KORG logue SDK makefile boilerplate remains BSD 3-Clause.
+
 ##############################################################################
 # Common project definitions
 #
