@@ -112,6 +112,10 @@
   - 対応: nts-1_mkii, microkorg2
   - Virus TI 風 9 ボイス・デチューンソー。Density / Spread / HyperSub / ステレオ幅。
 
+- **AcidTouch** (`acidtouch`) — synth（実験的、GPL-3.0-only）
+  - 対応: nts-3_kaoss
+  - 新生 KAOCID。タップで TB-3PO 風フレーズ、XY はカットオフ／レゾナンス。既存 Kaocid は残置。このユニットのみ GPL-3.0-only。
+
 - **Kaocid** (`kaocid`) — synth
   - 対応: nts-3_kaoss
   - XY パッドで弾く 303 風シンセ。タップでフレーズ生成。調整中。正式リリース予定。

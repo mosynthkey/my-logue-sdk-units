@@ -1,0 +1,19 @@
+{
+  "id": "acidtouch",
+  "license": "GPL-3.0-only",
+  "experimental": true,
+  "name": "AcidTouch",
+  "type": "synth",
+  "targets": ["nts-3_kaoss"],
+  "description": "New KAOCID. Tap to roll a TB-3PO-style 303 phrase; XY plays cutoff and resonance. The previous Kaocid unit is unchanged. Audio in is replaced.",
+  "params": [
+    { "name": "CUT", "role": "X", "detail": "Filter cutoff, about 80 Hz to 8 kHz" },
+    { "name": "RES", "role": "Y", "detail": "Filter resonance, limited before self-oscillation" },
+    { "name": "DEN", "role": "Depth", "detail": "Note density (gate probability)" },
+    { "name": "TIME", "role": "Edit", "detail": "Step length around a synced 1/16 (host BPM)" },
+    { "name": "ACID", "role": "Edit", "detail": "Accent probability plus slide probability" },
+    { "name": "OCT", "role": "Edit", "detail": "Phrase range, 1 to 3 octaves above C2" },
+    { "name": "DRV", "role": "Edit", "detail": "Soft tanh drive" },
+    { "name": "MODE", "role": "Edit", "detail": "Saw or square, and Gate, Latch, Thru, or Mutate" }
+  ]
+}
