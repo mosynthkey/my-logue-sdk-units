@@ -15,10 +15,12 @@ Tap rolls a 16-step acid phrase and the XY pad plays the filter. The slot ignore
 | Y | Resonance, eased off before self-oscillation. |
 | DEN | Gate probability. |
 | ACID | Accent probability and slide probability. |
-| OCT | 1–3 octaves, natural minor from C2. |
+| OCT | 1–3 octaves above Root. |
+| ROOT | Phrase key, C1–C3, natural minor. Default C2. New rolls use it, and the current phrase transposes with the knob. |
 | TIME | Step length around a host-synced 1/16 (half to double). |
-| DRV | Soft tanh drive. |
 | MODE | Saw/square × Gate / Latch / Thru / Mutate. Thru and Mutate loop from load. |
+
+Soft drive stays at a fixed moderate amount. NTS-3 genericfx has eight parameters, so ROOT takes the slot DRV used.
 
 Phrase rules: 16 steps, rest / note / accent / slide, at least one note, accent velocity 118 and normal velocity 72, 50% gate, slide is a legato exponential glide of fixed time (~55 ms). The same seed reproduces the same pattern. Decay and envelope depth are internal, with a shorter, deeper sweep on accents.
 

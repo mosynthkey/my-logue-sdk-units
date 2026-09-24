@@ -425,8 +425,8 @@ export const dspExplainById = {
   Pan --> Mix[Sub mix and norm] --> Out[Out]`,
   },
   acidtouch: {
-    en: "New KAOCID. Tap rolls a 16-step acid phrase (MUT mode or a hold mutates ~25%). Saw/square, fixed-time slide, accent velocity 118 vs 72, then a 4-pole ladder (X cutoff, Y resonance) and soft drive. Audio in is replaced. The original Kaocid unit is unchanged.",
-    ja: "新生KAOCIDです。タップで16ステップのアシッドフレーズを再生成（MUT、または長押しで約25%変異）。ソー／矩形、固定時間スライド、アクセント118／通常72、4ポールラダー（Xカットオフ、Yレゾナンス）とソフトドライブ。入力は置き換え。既存Kaocidは残しています。",
+    en: "New KAOCID. Tap rolls a 16-step acid phrase in natural minor from ROOT (MUT mode or a hold mutates ~25%). Saw/square, fixed-time slide, accent velocity 118 vs 72, then a 4-pole ladder (X cutoff, Y resonance) and a fixed soft drive. Audio in is replaced. The original Kaocid unit is unchanged.",
+    ja: "新生KAOCIDです。タップでROOT基準の短音階16ステップを再生成（MUT、または長押しで約25%変異）。ソー／矩形、固定時間スライド、アクセント118／通常72、4ポールラダー（Xカットオフ、Yレゾナンス）。入力は置き換え。既存Kaocidは残しています。",
     mermaid: `flowchart LR
   Touch[Touch NEW or MUT] --> Seq[16-step phrase]
   Seq --> VCO[Saw or square and slide]

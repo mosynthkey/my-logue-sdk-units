@@ -70,7 +70,7 @@ int main()
   synth.setParameter(AcidTouch::TIME, 512);
   synth.setParameter(AcidTouch::ACID, 700);
   synth.setParameter(AcidTouch::OCT, 1);
-  synth.setParameter(AcidTouch::DRV, 280);
+  synth.setParameter(AcidTouch::ROOT, 36);
   synth.setParameter(AcidTouch::MODE, 4);
 
   const uint32_t step_samples = synth.debugStepSamples();
@@ -118,6 +118,36 @@ int main()
   }
   if (slides != 0U)
     return fail(9, "acid 0 should not slide");
+
+  synth.setParameter(AcidTouch::ROOT, 41);
+  synth.debugGenerate(0x51U);
+  static const int kMinorPc[] = {0, 2, 3, 5, 7, 8, 10};
+  uint32_t rooted = 0U;
+  for (uint32_t stepIndex = 0; stepIndex < AcidTouch::kSteps; ++stepIndex)
+  {
+    const int note = synth.debugNote(stepIndex);
+    if (note < 0)
+      continue;
+    ++rooted;
+    if (note < 41 || note > 41 + 34)
+      return fail(26, "note left the root range");
+    const int pitch_class = (note - 41) % 12;
+    bool in_scale = false;
+    for (uint32_t degreeIndex = 0; degreeIndex < 7U; ++degreeIndex)
+    {
+      if (pitch_class == kMinorPc[degreeIndex])
+        in_scale = true;
+    }
+    if (!in_scale)
+      return fail(27, "note is outside natural minor of root");
+  }
+  if (rooted == 0U)
+    return fail(28, "root phrase was empty");
+  const int before = synth.debugNote(0);
+  synth.setParameter(AcidTouch::ROOT, 46);
+  if (before >= 0 && synth.debugNote(0) != before + 5)
+    return fail(29, "root knob did not transpose the phrase");
+  synth.setParameter(AcidTouch::ROOT, 36);
 
   synth.setParameter(AcidTouch::DEN, 1023);
   synth.setParameter(AcidTouch::ACID, 1023);

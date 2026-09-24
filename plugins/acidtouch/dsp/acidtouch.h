@@ -62,7 +62,7 @@ public:
     TIME,
     ACID,
     OCT,
-    DRV,
+    ROOT,
     MODE,
     NUM_PARAMS
   };
@@ -98,8 +98,8 @@ public:
     case OCT:
       octaves_ = static_cast<uint8_t>(value < 0 ? 0 : (value > 2 ? 2 : value));
       break;
-    case DRV:
-      drive_ = param_10bit_to_f32(value);
+    case ROOT:
+      setRoot(value);
       break;
     case MODE:
       applyMode(value);
@@ -120,6 +120,9 @@ public:
         value = 2;
       return kOctaveLabels[value];
     }
+
+    if (index == ROOT)
+      return noteLabel(value);
 
     if (index != MODE)
       return nullptr;
@@ -142,6 +145,7 @@ public:
     acid_ = 0.48f;
     octaves_ = 1U;
     drive_ = 0.28f;
+    root_note_ = 36;
     square_wave_ = false;
     play_ = PLAY_THRU;
     bpm_ = 120.f;
@@ -400,8 +404,8 @@ private:
 
   void resetVoice()
   {
-    pitch_ = kRootMidi;
-    pitch_target_ = kRootMidi;
+    pitch_ = static_cast<float>(root_note_);
+    pitch_target_ = static_cast<float>(root_note_);
     phase_ = 0.f;
     gate_open_ = false;
     slide_active_ = false;
@@ -486,8 +490,57 @@ private:
     else if (octaves_ >= 2U)
       octave = roll < 0.55f ? 0U : (roll < 0.85f ? 1U : 2U);
 
-    return static_cast<int8_t>(static_cast<int32_t>(kRootMidi) + kMinor[degree_index] +
+    return static_cast<int8_t>(static_cast<int32_t>(root_note_) + kMinor[degree_index] +
                                static_cast<int32_t>(octave) * 12);
+  }
+
+  static const char *noteLabel(int32_t midi_note)
+  {
+    static char label[8];
+    static const char *kPitchClasses[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+    if (midi_note < 0)
+      midi_note = 0;
+    if (midi_note > 127)
+      midi_note = 127;
+    const int32_t pitch_class = midi_note % 12;
+    const int32_t octave = (midi_note / 12) - 1;
+    char *out = label;
+    const char *pitch_name = kPitchClasses[pitch_class];
+    while (*pitch_name != '\0')
+      *out++ = *pitch_name++;
+    if (octave < 0)
+    {
+      *out++ = '-';
+      *out++ = static_cast<char>('0' - octave);
+    }
+    else
+    {
+      *out++ = static_cast<char>('0' + octave);
+    }
+    *out = '\0';
+    return label;
+  }
+
+  void setRoot(int32_t midi_note)
+  {
+    if (midi_note < 24)
+      midi_note = 24;
+    if (midi_note > 48)
+      midi_note = 48;
+    const int32_t delta = midi_note - static_cast<int32_t>(root_note_);
+    root_note_ = static_cast<int8_t>(midi_note);
+    if (delta == 0)
+      return;
+
+    for (uint32_t stepIndex = 0; stepIndex < kSteps; ++stepIndex)
+    {
+      if (phrase_[stepIndex].note < 0)
+        continue;
+      const int32_t shifted = static_cast<int32_t>(phrase_[stepIndex].note) + delta;
+      phrase_[stepIndex].note = static_cast<int8_t>(shifted);
+    }
+    pitch_ += static_cast<float>(delta);
+    pitch_target_ += static_cast<float>(delta);
   }
 
   static void clearStep(Step &step)
@@ -705,6 +758,7 @@ private:
   uint32_t step_pos_ = 0U;
   uint32_t hold_samples_ = 0U;
   uint8_t octaves_ = 1U;
+  int8_t root_note_ = 36;
   Play play_ = PLAY_THRU;
   bool square_wave_ = false;
   bool finger_down_ = false;
