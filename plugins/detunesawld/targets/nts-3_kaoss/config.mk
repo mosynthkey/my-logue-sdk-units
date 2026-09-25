@@ -2,7 +2,7 @@
 # Configuration for Makefile
 #
 
-PROJECT := reesephr
+PROJECT := detunesawld
 PROJECT_TYPE := genericfx
 
 ##############################################################################
@@ -33,7 +33,7 @@ ULIBDIR =
 # Libraries
 #
 
-ULIBS = -lm
+ULIBS =
 
 ##############################################################################
 # Macros
