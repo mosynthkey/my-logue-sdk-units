@@ -2,7 +2,7 @@
     BSD 3-Clause License
 
     Copyright (c) 2023, KORG INC.
-    Copyright (c) 2026, Lead contributors
+    Copyright (c) 2026, DetuneSawLd contributors
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@
 /*
  * File: header.c
  *
- * NTS-3 generic effect unit header for Lead
+ * NTS-3 generic effect unit header for DetuneSawLd
  *
  */
 
@@ -49,28 +49,28 @@ const __unit_header genericfx_unit_header_t unit_header = {
         .target = UNIT_TARGET_PLATFORM | k_unit_module_genericfx,
         .api = UNIT_API_VERSION,
         .dev_id = MLSA_DEV_ID,
-        .unit_id = 0x00000047U,
+        .unit_id = 0x00000056U,
         .version = MLSA_VERSION_EXPERIMENTAL,
-        .name = "Lead",
+        .name = "DetuneSawLd",
         .num_params = 8,
         .params = {
-            {0, 1023, 0, 360, k_unit_param_type_none, 0, 0, 0, {"PITCH"}},
-            {0, 1023, 0, 360, k_unit_param_type_none, 0, 0, 0, {"VIBR"}},
-            {0, 1023, 0, 310, k_unit_param_type_none, 0, 0, 0, {"PORTA"}},
+            {0, 1023, 0, 0, k_unit_param_type_none, 0, 0, 0, {"PITCH"}},
+            {0, 1023, 0, 0, k_unit_param_type_none, 0, 0, 0, {"OCT"}},
+            {0, 1023, 0, 520, k_unit_param_type_none, 0, 0, 0, {"DETUN"}},
             {0, 9, 0, 0, k_unit_param_type_strings, 0, 0, 0, {"SCALE"}},
-            {24, 60, 36, 36, k_unit_param_type_midi_note, 0, 0, 0, {"KEY"}},
-            {0, 4, 0, 2, k_unit_param_type_strings, 0, 0, 0, {"UNI"}},
-            {0, 1023, 0, 560, k_unit_param_type_none, 0, 0, 0, {"DETUN"}},
-            {0, 1023, 0, 720, k_unit_param_type_none, 0, 0, 0, {"SPRD"}}},
+            {24, 48, 36, 36, k_unit_param_type_midi_note, 0, 0, 0, {"KEY"}},
+            {0, 1023, 0, 400, k_unit_param_type_none, 0, 0, 0, {"SUB"}},
+            {0, 1023, 0, 460, k_unit_param_type_none, 0, 0, 0, {"PUMP"}},
+            {0, 1000, 0, 1000, k_unit_param_type_percent, 1, 1, 0, {"MIX"}}},
     },
     .default_mappings = {
-        {k_genericfx_param_assign_x, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 360},
-        {k_genericfx_param_assign_y, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 360},
-        {k_genericfx_param_assign_depth, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 310},
+        {k_genericfx_param_assign_x, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 0},
+        {k_genericfx_param_assign_y, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 0},
+        {k_genericfx_param_assign_depth, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 520},
         {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 9, 0},
-        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 24, 60, 36},
-        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 4, 2},
-        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 560},
-        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 720},
+        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 24, 48, 36},
+        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 400},
+        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1023, 460},
+        {k_genericfx_param_assign_none, k_genericfx_curve_linear, k_genericfx_curve_unipolar, 0, 1000, 1000},
     },
 };

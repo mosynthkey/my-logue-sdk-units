@@ -1,0 +1,52 @@
+{
+  "id": "detunesawld",
+  "experimental": true,
+  "name": "DetuneSawLd",
+  "type": "synth",
+  "targets": [
+    "nts-3_kaoss"
+  ],
+  "description": "Detuned saw lead. X picks a scale degree inside one octave; Y crossfades that note across five octaves between adjacent octaves. Depth is detune. PUMP ducks on each 16th step. Touch gates the voice.",
+  "params": [
+    {
+      "name": "PITCH",
+      "role": "X",
+      "detail": "Scale degree inside one octave"
+    },
+    {
+      "name": "OCT",
+      "role": "Y",
+      "detail": "Five-octave position, crossfade between adjacent octaves"
+    },
+    {
+      "name": "DETUN",
+      "role": "Depth",
+      "detail": "Detune / beating of the saw stack"
+    },
+    {
+      "name": "SCALE",
+      "role": "Edit",
+      "detail": "Ionian, modes, pentatonic, or chromatic"
+    },
+    {
+      "name": "KEY",
+      "role": "Edit",
+      "detail": "Root of the lowest octave"
+    },
+    {
+      "name": "SUB",
+      "role": "Edit",
+      "detail": "Sub square one octave down"
+    },
+    {
+      "name": "PUMP",
+      "role": "Edit",
+      "detail": "Duck depth, synced to each 16th step"
+    },
+    {
+      "name": "MIX",
+      "role": "Edit",
+      "detail": "Dry/wet"
+    }
+  ]
+}

@@ -270,27 +270,30 @@ PLUGINS = [
         ],
     },
     {
-        "id": "reesephr",
-        "class": "ReesePhr",
-        "name": "ReesePhr",
-        "unit_id": "0x0000001BU",
+        "id": "detunesawld",
+        "class": "DetuneSawLd",
+        "name": "DetuneSawLd",
+        "unit_id": "0x00000056U",
         "type": "synth",
         "description": (
-            "Detuned Reese drone with a sparse phrase generator. Touch gates a beating "
-            "supersaw; Y sets detune / beat speed. Every 1–2 bars the root may walk a "
-            "minor third inside the scale so the pressure changes without a melody."
+            "Detuned saw lead. X picks a scale degree inside one octave; Y crossfades "
+            "that note across five octaves between adjacent octaves. Depth is detune. "
+            "PUMP ducks on each 16th step. Touch gates the voice."
         ),
         "ja": (
-            "デチューンソウのReeseドローンです。Hooverではなく、低速で疎に動く低域フレーズ付き。"
-            "Xはピッチ、Yはデチューン、タッチでゲートです。"
+            "デチューンソウのリードです。Xはキーとスケールに沿った1オクターブの音程、"
+            "Yは隣接オクターブをクロスフェードする5オクターブ分の位置です。"
+            "PUMPは16ステップに同期してダックします。タッチでゲートです。"
         ),
         "params": [
-            ("PITCH", 0, 1023, 360, NONE, 0, 0, "x", "Root pitch of the drone"),
-            ("DETUN", 0, 1023, 520, NONE, 0, 0, "y", "Detune / beating speed"),
-            ("MIX", 0, 1000, 1000, PCT, 1, 1, "depth", "Dry/wet"),
-            ("ROOT", 24, 48, 36, NOTE, 0, 0, "none", "Phrase key"),
-            ("RATE", 0, 1023, 300, NONE, 0, 0, "none", "How often the drone walks"),
+            ("PITCH", 0, 1023, 0, NONE, 0, 0, "x", "Scale degree inside one octave"),
+            ("OCT", 0, 1023, 0, NONE, 0, 0, "y", "Five-octave position, crossfade between adjacent octaves"),
+            ("DETUN", 0, 1023, 520, NONE, 0, 0, "depth", "Detune / beating of the saw stack"),
+            ("SCALE", 0, 9, 0, STR, 0, 0, "none", "Ionian, modes, pentatonic, or chromatic"),
+            ("KEY", 24, 48, 36, NOTE, 0, 0, "none", "Root of the lowest octave"),
             ("SUB", 0, 1023, 400, NONE, 0, 0, "none", "Sub square one octave down"),
+            ("PUMP", 0, 1023, 460, NONE, 0, 0, "none", "Duck depth, synced to each 16th step"),
+            ("MIX", 0, 1000, 1000, PCT, 1, 1, "none", "Dry/wet"),
         ],
     },
     {

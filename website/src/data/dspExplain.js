@@ -485,16 +485,20 @@ export const dspExplainById = {
   Buf --> Cap --> Loop[Reverse loop] --> Mix[Dry or wet] --> Out[Out]
   In --> Mix`,
   },
-  reesephr: {
-    en: "Pad-gated detuned Reese: 4 BLEP saws plus a sub pulse. A sparse tempo scale-walk shifts the root; soft-clipped and dry/wet mixed with a slight stereo imbalance.",
-    ja: "パッド・ゲートのデチューン・リースです。4本BLEPソー＋サブ矩形。テンポ疎なスケール歩行で根音が動き、ソフトクリップ後ドライ／ウェットします。",
+  detunesawld: {
+    en: "Pad-gated detuned saw lead. X quantizes to a scale degree in one octave; Y equal-power crossfades that degree between adjacent octaves over a 5-octave span. PUMP ducks on each 16th and swells back before the next step.",
+    ja: "パッド・ゲートのデチューンソウ・リードです。Xは1オクターブ内のスケール音、Yは隣接オクターブを等パワーでクロスフェードします。PUMPは16分ごとにダックして次のステップまでに戻ります。",
     mermaid: `flowchart LR
   Touch[Pad gate] --> Amp[Amp smooth]
-  Walk[Scale walk] --> Saws[4 detuned BLEP saws]
-  Walk --> Sub[Sub pulse]
-  Saws --> Sum[Softclip]
-  Sub --> Sum
+  X[Scale degree] --> Low[Lower octave saws plus sub]
+  X --> High[Upper octave saws plus sub]
+  Y[Octave crossfade] --> Low
+  Y --> High
+  Step[16th step] --> Pump[Pump duck]
+  Low --> Sum[Softclip]
+  High --> Sum
   Amp --> Sum
+  Pump --> Sum
   Sum --> Mix[Dry or wet] --> Out[Out]
   In[Audio in] --> Mix`,
   },
