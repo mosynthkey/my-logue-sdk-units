@@ -659,15 +659,13 @@ export const dspExplainById = {
   In[Audio in] --> Mix`,
   },
   tapeosc: {
-    en: "Tape-style oscillator: one logue band-limited saw, square, triangle, or sine is written into a circular buffer while a varispeed read head ramps start/stop in milliseconds. Releasing the key starts the stop. Wow is 0-100% at one tenth of the old depth.",
-    ja: "テープ風OSCです。logueの帯域制限 saw/square/triangle/sine を1本だけ円形バッファへ書き、読みヘッドが ms 指定の起動／停止で変速します。鍵盤を離すと停止が始まります。ワウは 0-100% で従来の 1/10 の深さです。",
+    en: "Tape-style oscillator: one logue band-limited saw, square, triangle, or sine whose phase advances at tape speed. Note-on ramps that speed up over START milliseconds, then the motor stays at full speed. The host amp envelope fades the release. Wow is 0-100% at one tenth of the old depth.",
+    ja: "テープ風OSCです。logueの帯域制限 saw/square/triangle/sine の位相をテープ速度で進めます。ノートオンで START（ms）かけて全速まで回り、その後は全速のままです。離鍵後の音量はホストのアンプEGが決めます。ワウは 0-100% で従来の 1/10 の深さです。",
     mermaid: `flowchart LR
-  Src[BL saw sqr tri sine]
-  Src --> Buf[Circular tape buffer]
-  Transport[Start Stop ms] --> Read[Varispeed read]
-  Buf --> Read
-  Wow[Wow 0 to 100 percent] --> Read
-  Read --> LPF[Motor LPF and wear] --> Out[Out]`,
+  Src[BL saw sqr tri sine] --> Phase[Phase at tape speed]
+  Transport[Start ms] --> Phase
+  Wow[Wow 0 to 100 percent] --> Phase
+  Phase --> LPF[Motor LPF] --> Out[Out]`,
   },
   technorumble: {
     en: "Insert rumble FX: mono into a 4-comb + 2-allpass Schroeder reverb, sub LPF, soft-clip drive, and input-transient sidechain duck on the wet path; dry/wet stereo.",

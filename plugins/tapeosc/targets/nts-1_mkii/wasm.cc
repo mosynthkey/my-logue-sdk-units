@@ -181,7 +181,8 @@ void noteOff(uint8_t note)
 
 bool releasesItself()
 {
-  return true;
+  // The preview gate fades the release. The motor does not spin down.
+  return false;
 }
 
 EMSCRIPTEN_BINDINGS(my_module)
