@@ -53,7 +53,7 @@ const __unit_header unit_header_t unit_header = {
     .num_params = 3,
     .params = {
         {0, 3, 0, 0, k_unit_param_type_strings, 0, 0, 0, {"WAVE"}},
-        {10, 2000, 10, 93, k_unit_param_type_msec, 0, 0, 0, {"START"}},
+        {0, 1023, 0, 93, k_unit_param_type_msec, 0, 0, 0, {"START"}},
         {0, 100, 0, 0, k_unit_param_type_percent, 0, 0, 0, {"WOW"}},
         {0, 0, 0, 0, k_unit_param_type_none, 0, 0, 0, {""}},
         {0, 0, 0, 0, k_unit_param_type_none, 0, 0, 0, {""}},

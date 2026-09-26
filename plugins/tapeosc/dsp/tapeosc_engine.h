@@ -201,8 +201,8 @@ private:
   static float millisecondsToSeconds(int32_t value)
   {
     float milliseconds = static_cast<float>(value);
-    if (milliseconds < 1.f)
-      milliseconds = 1.f;
+    if (milliseconds < 0.f)
+      milliseconds = 0.f;
     return milliseconds * 0.001f;
   }
 
@@ -230,8 +230,13 @@ private:
 
   void updateTransportCoeffs()
   {
-    const float start_sec = (params_.start_sec < 0.001f) ? 0.001f : params_.start_sec;
-    start_coeff_ = 1.f - expf(-1.f / (start_sec * getSampleRate()));
+    // 0 ms would divide by zero. A coefficient of 1 reaches full speed on the first sample.
+    if (params_.start_sec <= 0.f)
+    {
+      start_coeff_ = 1.f;
+      return;
+    }
+    start_coeff_ = 1.f - expf(-1.f / (params_.start_sec * getSampleRate()));
   }
 
   static float getSampleRate() { return static_cast<float>(k_samplerate); }

@@ -7,7 +7,7 @@
   "description": "Varispeed oscillator with a tape-motor spin-up. One platform band-limited saw, square, triangle, or sine runs at tape speed. Note-on starts the motor; the host amp envelope fades the release.",
   "params": [
     { "name": "WAVE", "role": "A", "detail": "Waveform: saw, square, triangle, sine. Uses the logue band-limited tables." },
-    { "name": "START", "role": "B", "detail": "Tape motor spin-up time in milliseconds (10-2000)" },
+    { "name": "START", "role": "B", "detail": "Tape motor spin-up time in milliseconds (0-1023). 0 reaches full speed immediately." },
     { "name": "WOW", "role": "Edit", "detail": "Wow and flutter depth, 0-100%. 100% is about ±10% tape speed." }
   ]
 }
