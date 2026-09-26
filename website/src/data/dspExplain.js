@@ -659,13 +659,14 @@ export const dspExplainById = {
   In[Audio in] --> Mix`,
   },
   tapeosc: {
-    en: "Tape-style oscillator: a band-limited source is written into a circular buffer while a varispeed read head ramps start/stop. Grit blends ZOH vs linear; wear LPF and wow/flutter modulate rate.",
-    ja: "テープ風OSCです。帯域制限波形を円形バッファへ書き、読みヘッドが起動／停止で変速します。グリットでZOH／線形、摩耗LPFとワウ／フラッタで速度を変調します。",
+    en: "Tape-style oscillator: logue band-limited saw, square, triangle, or sine (plus HyperSaw unison) is written into a circular buffer while a varispeed read head ramps start/stop in milliseconds. Grit blends ZOH vs linear; wow is 0-100% at one tenth of the old depth.",
+    ja: "テープ風OSCです。logueの帯域制限 saw/square/triangle/sine と HyperSaw 式ユニゾンを円形バッファへ書き、読みヘッドが ms 指定の起動／停止で変速します。グリットは線形とZOHの混合、ワウは 0-100% で従来の 1/10 の深さです。",
     mermaid: `flowchart LR
-  Src[BL waveform] --> Buf[Circular tape buffer]
-  Transport[Start or Stop rate] --> Read[Varispeed read]
+  Uni[Unison detune] --> Src[BL saw sqr tri sine]
+  Src --> Buf[Circular tape buffer]
+  Transport[Start Stop ms] --> Read[Varispeed read]
   Buf --> Read
-  Wow[Wow Flutter] --> Read
+  Wow[Wow 0 to 100 percent] --> Read
   Read --> LPF[Motor LPF and wear] --> Out[Out]`,
   },
   technorumble: {

@@ -9,86 +9,26 @@
 
 #include "tapeosc_engine.h"
 #include "processor.h"
-#include "macros.h"
 #include <stdint.h>
 
 class TapeOsc : public Processor
 {
 public:
-  enum
-  {
-    WAVEFORM = 0U,
-    START,
-    STOP,
-    GRIT,
-    WEAR,
-    WOW,
-    NUM_PARAMS
-  };
-
   uint32_t getBufferSize() const override final { return 0; }
 
   void setParameter(uint8_t index, int32_t value) override final
   {
-    TapeOscEngine::Params params = engine_.getParams();
-
-    switch (index)
-    {
-    case WAVEFORM:
-    {
-      uint32_t waveform = static_cast<uint32_t>(value);
-      if (waveform >= TapeOscEngine::NUM_WAVEFORMS)
-        waveform = TapeOscEngine::NUM_WAVEFORMS - 1U;
-      params.waveform = static_cast<TapeOscEngine::Waveform>(waveform);
-      break;
-    }
-    case START:
-      params.start_norm = param_10bit_to_f32(value);
-      break;
-    case STOP:
-      params.stop_norm = param_10bit_to_f32(value);
-      break;
-    case GRIT:
-      params.grit = param_10bit_to_f32(value);
-      break;
-    case WEAR:
-      params.wear = param_10bit_to_f32(value);
-      break;
-    case WOW:
-      params.wow = param_10bit_to_f32(value);
-      break;
-    default:
-      return;
-    }
-
-    engine_.setParams(params);
+    engine_.applyParam(index, value);
   }
 
   const char *getParameterStrValue(uint8_t index, int32_t value) const override final
   {
-    static const char *waveform_names[TapeOscEngine::NUM_WAVEFORMS] = {
-        "SAW",
-        "SQR",
-        "SINE",
-        "TRI",
-    };
-
-    if (index == WAVEFORM && value >= 0 && value < TapeOscEngine::NUM_WAVEFORMS)
-      return waveform_names[value];
-
-    return nullptr;
+    return engine_.parameterString(index, value);
   }
 
   void init(float *) override final
   {
-    TapeOscEngine::Params params;
-    params.waveform = TapeOscEngine::WAVEFORM_SAW;
-    params.start_norm = 0.42f;
-    params.stop_norm = 0.55f;
-    params.grit = 0.35f;
-    params.wear = 0.f;
-    params.wow = 0.f;
-    engine_.setParams(params);
+    engine_.setDefaults();
     engine_.reset();
     engine_.randomizePhase();
     base_note_ = 60.f;
@@ -150,7 +90,7 @@ public:
   }
 
 private:
-  TapeOscEngine engine_;
+  TapeOscEngine<> engine_;
   float base_w0_ = 0.f;
   float base_note_ = 60.f;
   uint8_t active_note_ = 0xFF;
