@@ -962,6 +962,10 @@
     }
   }
 
+  function releasesItself() {
+    return typeof window.Module?.releasesItself === "function" && Boolean(window.Module.releasesItself());
+  }
+
   function setGate(open) {
     if (!envelope || !audioContext) {
       return;
@@ -1075,6 +1079,7 @@
     noteOff(note) {
       window.Module.noteOff(note);
     },
+    releasesItself,
     setGate,
     touchBegan(xNormalized, yNormalized) {
       resumeAudio();
