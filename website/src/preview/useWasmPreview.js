@@ -220,18 +220,18 @@ export function useWasmPreview(previewShellRef) {
     }
     frequencyStack.value = nextStack;
 
+    runtime.noteOff(note);
+
     if (nextStack.length > 0) {
       runtime.setOscPitch(nextStack[nextStack.length - 1]);
-    } else if (!latchEnabled.value) {
+    } else if (!latchEnabled.value && !runtime.releasesItself?.()) {
       runtime.setGate(false);
     }
-
-    runtime.noteOff(note);
   }
 
   function onLatchToggle() {
     latchEnabled.value = !latchEnabled.value;
-    if (!latchEnabled.value && frequencyStack.value.length === 0) {
+    if (!latchEnabled.value && frequencyStack.value.length === 0 && !host()?.releasesItself?.()) {
       host()?.setGate(false);
     }
   }

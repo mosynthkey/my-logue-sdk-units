@@ -4,15 +4,12 @@
   "name": "TapeOsc",
   "type": "osc",
   "targets": ["nts-1_mkii", "microkorg2"],
-  "description": "Varispeed oscillator with tape motor start/stop. Platform band-limited saw, square, triangle, and sine are written to a tape and slowed down like a deck, with 1-8 unison oscillators.",
+  "description": "Varispeed oscillator with tape motor start/stop. One platform band-limited saw, square, triangle, or sine is written to a tape and slowed down like a deck.",
   "params": [
     { "name": "WAVE", "role": "A", "detail": "Waveform: saw, square, triangle, sine. Uses the logue band-limited tables." },
     { "name": "START", "role": "B", "detail": "Tape motor spin-up time in milliseconds (10-2000)" },
-    { "name": "STOP", "role": "Edit", "detail": "Tape motor spin-down time in milliseconds (10-4000)" },
-    { "name": "GRIT", "role": "Shift+A", "detail": "Read-head interpolation. 0 is linear, full is stepped zero-order hold." },
-    { "name": "WEAR", "role": "Shift+B", "detail": "Lo-fi wear: hiss, saturation, droop, dropouts" },
-    { "name": "WOW", "role": "Shift+Edit", "detail": "Wow and flutter depth, 0-100%. 100% is about ±10% tape speed." },
-    { "name": "Unison", "role": "Edit", "detail": "Unison oscillator count, 1-8" },
-    { "name": "Detune", "role": "Edit", "detail": "Detune spread, 0-100%. 100% matches the former knob at 300." }
+    { "name": "STOP", "role": "Edit", "detail": "Tape motor spin-down time in milliseconds (10-4000). Starts when the key is released." },
+    { "name": "WEAR", "role": "Shift+A", "detail": "Lo-fi wear: hiss, saturation, droop, dropouts" },
+    { "name": "WOW", "role": "Shift+B", "detail": "Wow and flutter depth, 0-100%. 100% is about ±10% tape speed." }
   ]
 }

@@ -659,10 +659,10 @@ export const dspExplainById = {
   In[Audio in] --> Mix`,
   },
   tapeosc: {
-    en: "Tape-style oscillator: logue band-limited saw, square, triangle, or sine (1-8 unison oscillators) is written into a circular buffer while a varispeed read head ramps start/stop in milliseconds. Grit blends ZOH vs linear; wow is 0-100% at one tenth of the old depth. Detune is 0-100%, and 100% matches the former knob at 300.",
-    ja: "テープ風OSCです。logueの帯域制限 saw/square/triangle/sine を 1-8 本のユニゾンで円形バッファへ書き、読みヘッドが ms 指定の起動／停止で変速します。グリットは線形とZOHの混合、ワウは 0-100% で従来の 1/10 の深さです。デチューンは 0-100% で、100% は従来ノブの 300 と同じ広がりです。",
+    en: "Tape-style oscillator: one logue band-limited saw, square, triangle, or sine is written into a circular buffer while a varispeed read head ramps start/stop in milliseconds. Releasing the key starts the stop. Wow is 0-100% at one tenth of the old depth.",
+    ja: "テープ風OSCです。logueの帯域制限 saw/square/triangle/sine を1本だけ円形バッファへ書き、読みヘッドが ms 指定の起動／停止で変速します。鍵盤を離すと停止が始まります。ワウは 0-100% で従来の 1/10 の深さです。",
     mermaid: `flowchart LR
-  Uni[Unison detune] --> Src[BL saw sqr tri sine]
+  Src[BL saw sqr tri sine]
   Src --> Buf[Circular tape buffer]
   Transport[Start Stop ms] --> Read[Varispeed read]
   Buf --> Read
