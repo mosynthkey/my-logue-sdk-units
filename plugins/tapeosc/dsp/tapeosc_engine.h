@@ -3,8 +3,8 @@
 /*
  * File: tapeosc_engine.h
  *
- * Tape-style varispeed oscillator. Playback rate slews from 0 to 1 on start
- * and back to 0 on stop, and the band-limited source phase advances at
+ * Tape-style varispeed oscillator. Playback rate slews from 0 to 1 on note-on
+ * and then stays at full speed. The band-limited source phase advances at
  * pitch * playback_rate. A short circular recording cannot hold a slow start:
  * the write head laps the read head and the linear read of that splice is the
  * rattling "staircase" on spin-up.
@@ -45,7 +45,6 @@ public:
   {
     kWaveform = 0U,
     kStart,
-    kStop,
     kWow,
     kNumParams
   };
@@ -54,15 +53,13 @@ public:
   {
     Idle = 0U,
     Starting,
-    Running,
-    Stopping
+    Running
   };
 
   struct Params
   {
     Waveform waveform = WAVEFORM_SAW;
     float start_sec = 0.093f;
-    float stop_sec = 0.558f;
     float wow = 0.f;
   };
 
@@ -71,7 +68,6 @@ public:
     Params params;
     params.waveform = WAVEFORM_SAW;
     params.start_sec = 0.093f;
-    params.stop_sec = 0.558f;
     params.wow = 0.f;
     setParams(params);
   }
@@ -111,9 +107,6 @@ public:
     }
     case kStart:
       params.start_sec = millisecondsToSeconds(value);
-      break;
-    case kStop:
-      params.stop_sec = millisecondsToSeconds(value);
       break;
     case kWow:
     {
@@ -169,15 +162,6 @@ public:
     lpf_state_ = 0.f;
     transport_state_ = TransportState::Starting;
     active_ = true;
-  }
-
-  void beginStop()
-  {
-    if (!active_ || transport_state_ == TransportState::Idle ||
-        transport_state_ == TransportState::Stopping)
-      return;
-
-    transport_state_ = TransportState::Stopping;
   }
 
   float render()
@@ -247,9 +231,7 @@ private:
   void updateTransportCoeffs()
   {
     const float start_sec = (params_.start_sec < 0.001f) ? 0.001f : params_.start_sec;
-    const float stop_sec = (params_.stop_sec < 0.001f) ? 0.001f : params_.stop_sec;
     start_coeff_ = 1.f - expf(-1.f / (start_sec * getSampleRate()));
-    stop_coeff_ = 1.f - expf(-1.f / (stop_sec * getSampleRate()));
   }
 
   static float getSampleRate() { return static_cast<float>(k_samplerate); }
@@ -305,16 +287,6 @@ private:
       playback_rate_ = 1.f;
       break;
 
-    case TransportState::Stopping:
-      playback_rate_ += (0.f - playback_rate_) * stop_coeff_;
-      if (playback_rate_ < 0.00005f)
-      {
-        playback_rate_ = 0.f;
-        transport_state_ = TransportState::Idle;
-        active_ = false;
-      }
-      break;
-
     case TransportState::Idle:
     default:
       playback_rate_ = 0.f;
@@ -347,7 +319,6 @@ private:
   Params params_;
   float playback_rate_ = 0.f;
   float start_coeff_ = 0.f;
-  float stop_coeff_ = 0.f;
   float base_w0_ = 0.f;
   float base_note_ = 60.f;
   float phase_ = 0.f;
