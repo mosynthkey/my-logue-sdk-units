@@ -17,7 +17,7 @@ export const japanesePluginDescriptions = {
   ride909: "テクノでよく聞く、裏打ちの909 Ride Cymbalを再生します。クロック同期し、Step 1再生のタイミングでPadを押すとちょうど裏打ちのRide Cymbalが再生されます。ピッチやSide Chainがかかったような効果を設定できます。",
   shaker: "PhISEM shakerの移植です。XY Pad / 鍵盤でさまざまなパーカッションを演奏できます。\n現在も調整中で、正式版\u2060は近日公開予定。",
   technorumble: "Techno rumble kick processorです。長いreverb tail、sub LPF、drive、kick transientに反応するsidechain duckを1ユニットにまとめています。NTS-3はAUDIO IN、mkIIはsynth出力にkickを入れて使います。X/TIME = decay、Y/DEPTH = cutoff、Depth/MIX = dry/wetです。",
-  tapeosc: "tape motorのstart/stopを再現するVarispeed oscillatorです。NTS-1 / microKORG2の帯域制限波形（saw / square / triangle / sine）を1本だけテープに書いて減速します。START/STOPはms、鍵盤を離すとSTOPが始まります。WOWは0-100%です。",
+  tapeosc: "tape motorのstart/stopを再現するVarispeed oscillatorです。NTS-1 / microKORG2の帯域制限波形（saw / square / triangle / sine）をテープ速度で再生します。START/STOPはms。NTS-1とプレビューは鍵盤を離すとSTOPが始まります。microKORG2のOSC APIにnote-offが無いので、Releaseを伸ばしてもモーターは止まらず音量だけが減衰します。WOWは0-100%です。",
   transitionlooper: "DJの繋ぎ用ルーパーです。テンポ同期した16ステップのステレオループをAUDIO INから取り込みます。ファーム1.4以降はパッドを離しているあいだも事前録音できます。事前録音が無音のときは、最初のホールドで1小節録ってからループします。パッドを離しているときはバイパス、押しているあいだは保存したループへフェードします。Xはフェード時間、Yはフィルタの振り幅、TYPEは音量 / ハイパス / ローパス / ベーススワップ / エコーアウト / ブレーキ / ループロールです。",
   retrig: "Glitch²風リトリガーです。AUDIO INをテンポ同期バッファに取り込み、タッチでスライスをフリーズして前方ループします。Yはスライス長（下=長い／上=短い）、Depthはwet。非タッチはバイパス。DECAYでループごとに減衰します。",
   reverse: "Glitch²風リバースです。AUDIO INをテンポ同期バッファに取り込み、タッチでスライスをフリーズし往復再生します。Yはスライス長（下=長い／上=短い）、Depthはwet。非タッチはバイパス。",

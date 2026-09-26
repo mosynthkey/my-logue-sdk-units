@@ -129,7 +129,7 @@ public:
 private:
   static const uint8_t kMaxHeld = 8;
 
-  TapeOscEngine<> engine_;
+  TapeOscEngine engine_;
   float base_w0_ = 0.f;
   float base_note_ = 60.f;
   uint8_t held_notes_[kMaxHeld] = {};

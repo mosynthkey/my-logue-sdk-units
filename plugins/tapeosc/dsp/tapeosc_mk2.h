@@ -4,12 +4,12 @@
  * File: tapeosc_mk2.h
  *
  * microKORG2 multi-voice TapeOsc adapter.
- * Each synth voice keeps its own tape. The buffer is int16 so eight voices
- * fit under the 48KB oscillator RAM-load limit.
  *
- * context->trigger is the only note event. A rising edge spins the motor up.
- * If the bit stays high across buffers it is a key gate, and the falling edge
- * runs the tape stop. A one-buffer impulse is just note-on and does not stop.
+ * context->trigger is a bit that the runtime sets high when that voice is
+ * triggered. It is not a held key gate, and this API has no note-off.
+ * The amp envelope (including Release) is applied after the oscillator, so a
+ * long release only fades a full-speed tape. The motor stop cannot be started
+ * from the key on microKORG2.
  *
  */
 
@@ -23,10 +23,7 @@
 class TapeOscMk2
 {
 public:
-  // 1280 samples is about 27 ms. Eight int16 tapes are 20KB.
-  static const uint32_t kBufferSize = 1280U;
-
-  typedef TapeOscEngine<kBufferSize, true> Voice;
+  typedef TapeOscEngine Voice;
 
   int8_t Init(const unit_runtime_desc_t *desc)
   {
@@ -50,7 +47,6 @@ public:
       engines_[voiceIndex].reset();
       engines_[voiceIndex].randomizePhase();
       voice_open_[voiceIndex] = false;
-      trigger_run_[voiceIndex] = 0;
     }
 
     for (uint8_t paramIndex = 0; paramIndex < Voice::kNumParams; ++paramIndex)
@@ -71,7 +67,6 @@ public:
       engines_[voiceIndex].reset();
       engines_[voiceIndex].randomizePhase();
       voice_open_[voiceIndex] = false;
-      trigger_run_[voiceIndex] = 0;
     }
   }
 
@@ -94,19 +89,11 @@ public:
           engines_[voiceIndex].randomizePhase();
           engines_[voiceIndex].beginStart();
           voice_open_[voiceIndex] = true;
-          trigger_run_[voiceIndex] = 1;
-        }
-        else if (trigger_run_[voiceIndex] < 2)
-        {
-          ++trigger_run_[voiceIndex];
         }
       }
-      else if (voice_open_[voiceIndex])
+      else
       {
-        if (trigger_run_[voiceIndex] > 1)
-          engines_[voiceIndex].beginStop();
         voice_open_[voiceIndex] = false;
-        trigger_run_[voiceIndex] = 0;
       }
 
       const uint8_t noteWhole = static_cast<uint8_t>(context->pitch[voiceIndex]);
@@ -162,5 +149,4 @@ private:
   Voice engines_[kMk2MaxVoices];
   int32_t cached_values_[Voice::kNumParams] = {};
   bool voice_open_[kMk2MaxVoices] = {};
-  uint8_t trigger_run_[kMk2MaxVoices] = {};
 };
