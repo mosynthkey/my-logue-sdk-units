@@ -8,6 +8,7 @@
   "params": [
     { "name": "WAVE", "role": "A", "detail": "Waveform: saw, square, triangle, sine. Uses the logue band-limited tables." },
     { "name": "START", "role": "B", "detail": "Tape motor spin-up time in milliseconds (0-1023). 0 reaches full speed immediately." },
-    { "name": "WOW", "role": "Edit", "detail": "Wow and flutter depth, 0-100%. 100% is about ±10% tape speed." }
+    { "name": "CURVE", "role": "Edit", "detail": "Spin-up shape, 0-127. 0 = slow then fast, 64 = linear, 127 = fast then settle." },
+    { "name": "WOW", "role": "Shift+A", "detail": "Wow and flutter depth, 0-100%. 100% is about ±10% tape speed." }
   ]
 }
