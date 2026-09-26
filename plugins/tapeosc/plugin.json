@@ -12,7 +12,7 @@
     { "name": "GRIT", "role": "Shift+A", "detail": "Read-head interpolation. 0 is linear, full is stepped zero-order hold." },
     { "name": "WEAR", "role": "Shift+B", "detail": "Lo-fi wear: hiss, saturation, droop, dropouts" },
     { "name": "WOW", "role": "Shift+Edit", "detail": "Wow and flutter depth, 0-100%. 100% is about ±10% tape speed." },
-    { "name": "UNI", "role": "Edit", "detail": "Unison oscillator count, 1-8" },
-    { "name": "DET", "role": "Edit", "detail": "Detune spread, 0-100%. 100% matches the former knob at 300." }
+    { "name": "Unison", "role": "Edit", "detail": "Unison oscillator count, 1-8" },
+    { "name": "Detune", "role": "Edit", "detail": "Detune spread, 0-100%. 100% matches the former knob at 300." }
   ]
 }
