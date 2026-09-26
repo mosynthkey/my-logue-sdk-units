@@ -3,14 +3,16 @@
   "experimental": true,
   "name": "TapeOsc",
   "type": "osc",
-  "targets": ["nts-1_mkii"],
-  "description": "Varispeed oscillator with tape motor start/stop. Band-limited synth waveforms slow down and freeze like a tape deck, not a pitch envelope.",
+  "targets": ["nts-1_mkii", "microkorg2"],
+  "description": "Varispeed oscillator with tape motor start/stop. Platform band-limited saw, square, triangle, and sine are written to a tape and slowed down like a deck, with HyperSaw-style unison.",
   "params": [
-    { "name": "WAVE", "role": "A", "detail": "Waveform: saw, square, sine, triangle" },
-    { "name": "START", "role": "B", "detail": "Tape motor spin-up time" },
-    { "name": "STOP", "role": "Edit", "detail": "Tape motor spin-down time" },
-    { "name": "GRIT", "role": "Shift+A", "detail": "Zero-order hold vs linear interpolation" },
+    { "name": "WAVE", "role": "A", "detail": "Waveform: saw, square, triangle, sine. Uses the logue band-limited tables." },
+    { "name": "START", "role": "B", "detail": "Tape motor spin-up time in milliseconds (10-2000)" },
+    { "name": "STOP", "role": "Edit", "detail": "Tape motor spin-down time in milliseconds (10-4000)" },
+    { "name": "GRIT", "role": "Shift+A", "detail": "Read-head interpolation. 0 is linear, full is stepped zero-order hold." },
     { "name": "WEAR", "role": "Shift+B", "detail": "Lo-fi wear: hiss, saturation, droop, dropouts" },
-    { "name": "WOW", "role": "Shift+Edit", "detail": "Wow and flutter pitch wobble" }
+    { "name": "WOW", "role": "Shift+Edit", "detail": "Wow and flutter depth, 0-100%. 100% is about ±10% tape speed." },
+    { "name": "UNI", "role": "Edit", "detail": "Unison voice count, 1-9, with HyperSaw-style crossfade" },
+    { "name": "DET", "role": "Edit", "detail": "Detune spread of the unison voices (HyperSaw / Virus curve)" }
   ]
 }
