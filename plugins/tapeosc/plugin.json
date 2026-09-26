@@ -4,7 +4,7 @@
   "name": "TapeOsc",
   "type": "osc",
   "targets": ["nts-1_mkii", "microkorg2"],
-  "description": "Varispeed oscillator with tape motor start/stop. Platform band-limited saw, square, triangle, and sine are written to a tape and slowed down like a deck, with HyperSaw-style unison.",
+  "description": "Varispeed oscillator with tape motor start/stop. Platform band-limited saw, square, triangle, and sine are written to a tape and slowed down like a deck, with 1-8 unison oscillators.",
   "params": [
     { "name": "WAVE", "role": "A", "detail": "Waveform: saw, square, triangle, sine. Uses the logue band-limited tables." },
     { "name": "START", "role": "B", "detail": "Tape motor spin-up time in milliseconds (10-2000)" },
@@ -12,7 +12,7 @@
     { "name": "GRIT", "role": "Shift+A", "detail": "Read-head interpolation. 0 is linear, full is stepped zero-order hold." },
     { "name": "WEAR", "role": "Shift+B", "detail": "Lo-fi wear: hiss, saturation, droop, dropouts" },
     { "name": "WOW", "role": "Shift+Edit", "detail": "Wow and flutter depth, 0-100%. 100% is about ±10% tape speed." },
-    { "name": "UNI", "role": "Edit", "detail": "Unison voice count, 1-9, with HyperSaw-style crossfade" },
-    { "name": "DET", "role": "Edit", "detail": "Detune spread of the unison voices (HyperSaw / Virus curve)" }
+    { "name": "UNI", "role": "Edit", "detail": "Unison oscillator count, 1-8" },
+    { "name": "DET", "role": "Edit", "detail": "Detune spread, 0-100%. 100% matches the former knob at 300." }
   ]
 }

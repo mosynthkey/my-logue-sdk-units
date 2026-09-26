@@ -55,7 +55,7 @@ class TapeOscEngine
 {
 public:
   static const uint32_t kBufferSize = BufferSize;
-  static const uint32_t kUnisonCount = 9U;
+  static const uint32_t kUnisonCount = 8U;
   static constexpr float kTwoPi = 6.283185307179586f;
   static constexpr float kOutputTrim = 0.62f;
   static constexpr float kMinLpfHz = 180.f;
@@ -66,6 +66,8 @@ public:
   // Former full-scale wow was ±100% of playback rate. Keep one tenth of that.
   static constexpr float kWowDepth = 0.1f;
   static constexpr float kGainSmoothing = 0.002f;
+  // 100% matches the former 0-1023 detune knob at raw value 300.
+  static constexpr float kDetuneFullScale = 300.f / 1023.f;
 
   enum Waveform : uint8_t
   {
@@ -190,11 +192,25 @@ public:
       break;
     }
     case kUnison:
-      params.unison = 1.f + param_10bit_to_f32(value) * 8.f;
+    {
+      int32_t count = value;
+      if (count < 1)
+        count = 1;
+      if (count > static_cast<int32_t>(kUnisonCount))
+        count = static_cast<int32_t>(kUnisonCount);
+      params.unison = static_cast<float>(count);
       break;
+    }
     case kDetune:
-      params.detune = param_10bit_to_f32(value);
+    {
+      float detune = static_cast<float>(value) * 0.01f;
+      if (detune < 0.f)
+        detune = 0.f;
+      if (detune > 1.f)
+        detune = 1.f;
+      params.detune = detune;
       break;
+    }
     default:
       return;
     }
@@ -327,16 +343,6 @@ private:
     return linintf(frac, kSpreadLut[lutIndex], kSpreadLut[lutIndex + 1U]);
   }
 
-  static float densityGain(float density, uint32_t voiceIndex)
-  {
-    const float voice_level = density - static_cast<float>(voiceIndex);
-    if (voice_level <= 0.f)
-      return 0.f;
-    if (voice_level >= 1.f)
-      return 1.f;
-    return voice_level;
-  }
-
   // osc_bl2_* always reads mip idx and idx+1, so the index stays below the last table.
   static float bandLimitIndex(float note, const uint8_t *notes, uint32_t noteCount)
   {
@@ -384,18 +390,20 @@ private:
 
   void updateUnison()
   {
-    const float spread_amount = spreadCurve(params_.detune);
+    const float spread_amount = spreadCurve(params_.detune * kDetuneFullScale);
+    // HyperSaw order through the low outer voice. Count 8 omits the high +960 voice.
     static const float kDetuneCoeff[kUnisonCount] = {
         0.f,
         -128.f, 128.f,
         -408.f, 408.f,
         -704.f, 704.f,
-        -960.f, 960.f};
+        -960.f};
 
+    const uint32_t active_count = static_cast<uint32_t>(params_.unison);
     float energy = 0.f;
     for (uint32_t voiceIndex = 0; voiceIndex < kUnisonCount; ++voiceIndex)
     {
-      const float gain = densityGain(params_.unison, voiceIndex);
+      const float gain = (voiceIndex < active_count) ? 1.f : 0.f;
       unison_target_gain_[voiceIndex] = gain;
       energy += gain * gain;
 
