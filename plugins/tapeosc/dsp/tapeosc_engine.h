@@ -7,10 +7,8 @@
  * target pitch while the read head follows playback_rate, producing tape
  * motor start/stop pitch sweeps instead of a simple pitch envelope.
  *
- * The source is the logue mipmapped oscillator set (osc_bl2_sawf / sqrf / parf
- * and osc_sinf). NTS-1 mkII and microKORG2 both export those tables, so the
- * saw does not need a separate PolyBLEP. Reading the tape slower, or mixing
- * toward zero-order hold with Grit, can still alias the recorded stream.
+ * The source is one logue mipmapped oscillator (osc_bl2_sawf / sqrf / parf
+ * or osc_sinf). NTS-1 mkII and microKORG2 both export those tables.
  *
  */
 
@@ -55,7 +53,6 @@ class TapeOscEngine
 {
 public:
   static const uint32_t kBufferSize = BufferSize;
-  static const uint32_t kUnisonCount = 8U;
   static constexpr float kTwoPi = 6.283185307179586f;
   static constexpr float kOutputTrim = 0.62f;
   static constexpr float kMinLpfHz = 180.f;
@@ -65,9 +62,6 @@ public:
   static constexpr float kFlutterHz = 6.5f;
   // Former full-scale wow was ±100% of playback rate. Keep one tenth of that.
   static constexpr float kWowDepth = 0.1f;
-  static constexpr float kGainSmoothing = 0.002f;
-  // 100% matches the former 0-1023 detune knob at raw value 300.
-  static constexpr float kDetuneFullScale = 300.f / 1023.f;
 
   enum Waveform : uint8_t
   {
@@ -83,11 +77,8 @@ public:
     kWaveform = 0U,
     kStart,
     kStop,
-    kGrit,
     kWear,
     kWow,
-    kUnison,
-    kDetune,
     kNumParams
   };
 
@@ -104,11 +95,8 @@ public:
     Waveform waveform = WAVEFORM_SAW;
     float start_sec = 0.093f;
     float stop_sec = 0.558f;
-    float grit = 0.35f;
     float wear = 0.f;
     float wow = 0.f;
-    float unison = 1.f;
-    float detune = 0.f;
   };
 
   void setDefaults()
@@ -117,11 +105,8 @@ public:
     params.waveform = WAVEFORM_SAW;
     params.start_sec = 0.093f;
     params.stop_sec = 0.558f;
-    params.grit = 358.f / 1023.f;
     params.wear = 0.f;
     params.wow = 0.f;
-    params.unison = 1.f;
-    params.detune = 0.f;
     setParams(params);
   }
 
@@ -138,21 +123,16 @@ public:
     wow_mix_ = 0.f;
     hold_counter_ = 0.f;
     held_sample_ = 0.f;
+    phase_ = 0.f;
     transport_state_ = TransportState::Idle;
     active_ = false;
-    for (uint32_t voiceIndex = 0; voiceIndex < kUnisonCount; ++voiceIndex)
-      unison_phase_[voiceIndex] = 0.f;
-    snapUnisonGains();
   }
 
   void randomizePhase()
   {
-    for (uint32_t voiceIndex = 0; voiceIndex < kUnisonCount; ++voiceIndex)
-    {
-      float phase = osc_white();
-      phase -= floorf(phase);
-      unison_phase_[voiceIndex] = phase;
-    }
+    float phase = osc_white();
+    phase -= floorf(phase);
+    phase_ = phase;
   }
 
   void applyParam(uint8_t index, int32_t value)
@@ -175,9 +155,6 @@ public:
     case kStop:
       params.stop_sec = millisecondsToSeconds(value);
       break;
-    case kGrit:
-      params.grit = param_10bit_to_f32(value);
-      break;
     case kWear:
       params.wear = param_10bit_to_f32(value);
       break;
@@ -189,26 +166,6 @@ public:
       if (wow > 1.f)
         wow = 1.f;
       params.wow = wow;
-      break;
-    }
-    case kUnison:
-    {
-      int32_t count = value;
-      if (count < 1)
-        count = 1;
-      if (count > static_cast<int32_t>(kUnisonCount))
-        count = static_cast<int32_t>(kUnisonCount);
-      params.unison = static_cast<float>(count);
-      break;
-    }
-    case kDetune:
-    {
-      float detune = static_cast<float>(value) * 0.01f;
-      if (detune < 0.f)
-        detune = 0.f;
-      if (detune > 1.f)
-        detune = 1.f;
-      params.detune = detune;
       break;
     }
     default:
@@ -237,8 +194,7 @@ public:
   {
     params_ = params;
     updateTransportCoeffs();
-    updateWearCoeff();
-    updateUnison();
+    updateFilterCoeffs();
   }
 
   const Params &getParams() const { return params_; }
@@ -247,7 +203,7 @@ public:
   {
     base_w0_ = w0;
     base_note_ = note;
-    updateUnison();
+    updateBandLimit();
   }
 
   void beginStart()
@@ -262,7 +218,6 @@ public:
     held_sample_ = 0.f;
     transport_state_ = TransportState::Starting;
     active_ = true;
-    snapUnisonGains();
   }
 
   void beginStop()
@@ -279,43 +234,45 @@ public:
     if (!active_ && transport_state_ == TransportState::Idle)
       return 0.f;
 
-    float source_sample = renderUnison();
-    // In-phase unison can peak above the band-limited table. Keep the tape in range.
-    if (source_sample > 1.f)
-      source_sample = 1.f;
-    else if (source_sample < -1.f)
-      source_sample = -1.f;
-    const uint32_t write_index = static_cast<uint32_t>(write_pos_) % kBufferSize;
+    const float source_sample = renderSource();
+    const uint32_t write_index = static_cast<uint32_t>(write_pos_);
     SampleOps::store(buffer_[write_index], source_sample);
     write_pos_ += 1.f;
     if (write_pos_ >= static_cast<float>(kBufferSize))
       write_pos_ -= static_cast<float>(kBufferSize);
 
     advanceTransport();
-    advanceWowFlutter();
+
+    float effective_rate = playback_rate_;
+    if (params_.wow > 0.f)
+    {
+      advanceWowFlutter();
+      const float wow_scale = params_.wow * kWowDepth * playback_rate_;
+      effective_rate = playback_rate_ * (1.f + wow_scale * wow_mix_);
+      if (effective_rate < 0.f)
+        effective_rate = 0.f;
+    }
 
     const float raw_sample = readBuffer(read_pos_);
-
-    const float wow_scale = params_.wow * kWowDepth * playback_rate_;
-    float effective_rate = playback_rate_ * (1.f + wow_scale * wow_mix_);
-    if (effective_rate < 0.f)
-      effective_rate = 0.f;
     read_pos_ += effective_rate;
-    while (read_pos_ >= static_cast<float>(kBufferSize))
+    if (read_pos_ >= static_cast<float>(kBufferSize))
       read_pos_ -= static_cast<float>(kBufferSize);
 
-    updateLpfCoeff();
-    lpf_state_ += lpf_coeff_ * (raw_sample - lpf_state_);
+    // Endpoint coeffs are exact; the sweep between them avoids a per-sample expf.
+    const float lpf_coeff = lpf_coeff_min_ + playback_rate_ * (lpf_coeff_max_ - lpf_coeff_min_);
+    lpf_state_ += lpf_coeff * (raw_sample - lpf_state_);
 
     const float motor_gain = 0.15f + 0.85f * sqrtf(fmaxf(playback_rate_, 0.f));
     float output = lpf_state_ * motor_gain;
-
     output = applyWear(output);
-
     return output * kOutputTrim;
   }
 
   bool isActive() const { return active_; }
+
+  TransportState transportState() const { return transport_state_; }
+
+  float playbackRate() const { return playback_rate_; }
 
 private:
   typedef TapeSampleOps<QuantizeBuffer> SampleOps;
@@ -326,21 +283,6 @@ private:
     if (milliseconds < 1.f)
       milliseconds = 1.f;
     return milliseconds * 0.001f;
-  }
-
-  static float spreadCurve(float spread_0_1)
-  {
-    const float clamped = (spread_0_1 < 0.f) ? 0.f : ((spread_0_1 > 1.f) ? 1.f : spread_0_1);
-    static const float kSpreadLut[17] = {
-        0.f, 0.00967268f, 0.0220363f, 0.0339636f, 0.0467636f, 0.0591273f, 0.0714909f,
-        0.0838545f, 0.0967273f, 0.121527f, 0.147127f, 0.193455f, 0.243418f, 0.293382f,
-        0.343345f, 0.3928f, 1.f};
-    const float scaled = clamped * 16.f;
-    const uint32_t lutIndex = static_cast<uint32_t>(scaled);
-    const float frac = scaled - static_cast<float>(lutIndex);
-    if (lutIndex >= 16U)
-      return 1.f;
-    return linintf(frac, kSpreadLut[lutIndex], kSpreadLut[lutIndex + 1U]);
   }
 
   // osc_bl2_* always reads mip idx and idx+1, so the index stays below the last table.
@@ -381,104 +323,52 @@ private:
 
   static float getSampleRate() { return static_cast<float>(k_samplerate); }
 
-  void snapUnisonGains()
+  void updateBandLimit()
   {
-    unison_norm_ = unison_target_norm_;
-    for (uint32_t voiceIndex = 0; voiceIndex < kUnisonCount; ++voiceIndex)
-      unison_gain_[voiceIndex] = unison_target_gain_[voiceIndex];
+    saw_idx_ = bandLimitIndex(base_note_, wt_saw_notes, k_wt_saw_notes_cnt);
+    sqr_idx_ = bandLimitIndex(base_note_, wt_sqr_notes, k_wt_sqr_notes_cnt);
+    par_idx_ = bandLimitIndex(base_note_, wt_par_notes, k_wt_par_notes_cnt);
   }
 
-  void updateUnison()
+  float renderSource()
   {
-    const float spread_amount = spreadCurve(params_.detune * kDetuneFullScale);
-    // HyperSaw order through the low outer voice. Count 8 omits the high +960 voice.
-    static const float kDetuneCoeff[kUnisonCount] = {
-        0.f,
-        -128.f, 128.f,
-        -408.f, 408.f,
-        -704.f, 704.f,
-        -960.f};
-
-    const uint32_t active_count = static_cast<uint32_t>(params_.unison);
-    float energy = 0.f;
-    for (uint32_t voiceIndex = 0; voiceIndex < kUnisonCount; ++voiceIndex)
-    {
-      const float gain = (voiceIndex < active_count) ? 1.f : 0.f;
-      unison_target_gain_[voiceIndex] = gain;
-      energy += gain * gain;
-
-      float detune_ratio = 1.f + (kDetuneCoeff[voiceIndex] * spread_amount) * (1.f / 720.f);
-      if (detune_ratio < 0.05f)
-        detune_ratio = 0.05f;
-      unison_w0_[voiceIndex] = base_w0_ * detune_ratio;
-
-      const float voice_note = base_note_ + 12.f * log2f(detune_ratio);
-      saw_idx_[voiceIndex] = bandLimitIndex(voice_note, wt_saw_notes, k_wt_saw_notes_cnt);
-      sqr_idx_[voiceIndex] = bandLimitIndex(voice_note, wt_sqr_notes, k_wt_sqr_notes_cnt);
-      par_idx_[voiceIndex] = bandLimitIndex(voice_note, wt_par_notes, k_wt_par_notes_cnt);
-    }
-
-    if (energy < 1e-6f)
-      unison_target_norm_ = 0.f;
-    else
-      unison_target_norm_ = 1.f / sqrtf(energy);
-  }
-
-  float renderWave(float phase, uint32_t voiceIndex) const
-  {
+    float sample = 0.f;
     switch (params_.waveform)
     {
     case WAVEFORM_SQUARE:
-      return osc_bl2_sqrf(phase, sqr_idx_[voiceIndex]);
+      sample = osc_bl2_sqrf(phase_, sqr_idx_);
+      break;
     case WAVEFORM_TRIANGLE:
-      return osc_bl2_parf(phase, par_idx_[voiceIndex]);
+      sample = osc_bl2_parf(phase_, par_idx_);
+      break;
     case WAVEFORM_SINE:
-      return osc_sinf(phase);
+      sample = osc_sinf(phase_);
+      break;
     case WAVEFORM_SAW:
     default:
-      return osc_bl2_sawf(phase, saw_idx_[voiceIndex]);
-    }
-  }
-
-  float renderUnison()
-  {
-    unison_norm_ += (unison_target_norm_ - unison_norm_) * kGainSmoothing;
-
-    float sum = 0.f;
-    for (uint32_t voiceIndex = 0; voiceIndex < kUnisonCount; ++voiceIndex)
-    {
-      float &smoothed_gain = unison_gain_[voiceIndex];
-      const float target_gain = unison_target_gain_[voiceIndex];
-      smoothed_gain += (target_gain - smoothed_gain) * kGainSmoothing;
-      if (target_gain == 0.f && smoothed_gain < 1e-5f)
-        smoothed_gain = 0.f;
-      if (smoothed_gain <= 0.f)
-        continue;
-
-      sum += renderWave(unison_phase_[voiceIndex], voiceIndex) * smoothed_gain;
-
-      float phase = unison_phase_[voiceIndex] + unison_w0_[voiceIndex];
-      phase -= floorf(phase);
-      unison_phase_[voiceIndex] = phase;
+      sample = osc_bl2_sawf(phase_, saw_idx_);
+      break;
     }
 
-    return sum * unison_norm_;
+    phase_ += base_w0_;
+    if (phase_ >= 1.f)
+      phase_ -= 1.f;
+    return sample;
   }
 
   float readBuffer(float position) const
   {
-    float wrapped = position;
-    while (wrapped >= static_cast<float>(kBufferSize))
-      wrapped -= static_cast<float>(kBufferSize);
-    while (wrapped < 0.f)
-      wrapped += static_cast<float>(kBufferSize);
+    if (position >= static_cast<float>(kBufferSize))
+      position -= static_cast<float>(kBufferSize);
+    if (position < 0.f)
+      position = 0.f;
 
-    const uint32_t index_a = static_cast<uint32_t>(wrapped) % kBufferSize;
-    const uint32_t index_b = (index_a + 1U) % kBufferSize;
-    const float frac = wrapped - floorf(wrapped);
-    const float linear_sample = linintf(frac, SampleOps::load(buffer_[index_a]), SampleOps::load(buffer_[index_b]));
-    const float zoh_sample = SampleOps::load(buffer_[index_a]);
-    return linintf(params_.grit, linear_sample, zoh_sample);
+    const uint32_t index_a = static_cast<uint32_t>(position);
+    uint32_t index_b = index_a + 1U;
+    if (index_b >= kBufferSize)
+      index_b = 0U;
+    const float frac = position - static_cast<float>(index_a);
+    return linintf(frac, SampleOps::load(buffer_[index_a]), SampleOps::load(buffer_[index_b]));
   }
 
   void advanceTransport()
@@ -515,16 +405,14 @@ private:
     }
   }
 
-  void updateLpfCoeff()
+  void updateFilterCoeffs()
   {
-    const float cutoff_hz = kMinLpfHz + playback_rate_ * (kMaxLpfHz - kMinLpfHz);
-    lpf_coeff_ = 1.f - expf((-kTwoPi * cutoff_hz) / getSampleRate());
-  }
+    const float sample_rate = getSampleRate();
+    lpf_coeff_min_ = 1.f - expf((-kTwoPi * kMinLpfHz) / sample_rate);
+    lpf_coeff_max_ = 1.f - expf((-kTwoPi * kMaxLpfHz) / sample_rate);
 
-  void updateWearCoeff()
-  {
-    const float cutoff_hz = kMaxLpfHz - params_.wear * (kMaxLpfHz - kMinWearLpfHz);
-    wear_lpf_coeff_ = 1.f - expf((-kTwoPi * cutoff_hz) / getSampleRate());
+    const float wear_hz = kMaxLpfHz - params_.wear * (kMaxLpfHz - kMinWearLpfHz);
+    wear_lpf_coeff_ = 1.f - expf((-kTwoPi * wear_hz) / sample_rate);
   }
 
   void advanceWowFlutter()
@@ -532,8 +420,10 @@ private:
     const float sample_rate = getSampleRate();
     wow_phase_ += kWowHz / sample_rate;
     flutter_phase_ += kFlutterHz / sample_rate;
-    wow_phase_ -= floorf(wow_phase_);
-    flutter_phase_ -= floorf(flutter_phase_);
+    if (wow_phase_ >= 1.f)
+      wow_phase_ -= 1.f;
+    if (flutter_phase_ >= 1.f)
+      flutter_phase_ -= 1.f;
 
     const float wow_lfo = osc_sinf(wow_phase_);
     const float flutter_lfo = osc_sinf(flutter_phase_);
@@ -588,8 +478,13 @@ private:
   float stop_coeff_ = 0.f;
   float base_w0_ = 0.f;
   float base_note_ = 60.f;
+  float phase_ = 0.f;
+  float saw_idx_ = 0.f;
+  float sqr_idx_ = 0.f;
+  float par_idx_ = 0.f;
   float lpf_state_ = 0.f;
-  float lpf_coeff_ = 0.f;
+  float lpf_coeff_min_ = 0.f;
+  float lpf_coeff_max_ = 0.f;
   float wear_lpf_state_ = 0.f;
   float wear_lpf_coeff_ = 0.f;
   float wow_phase_ = 0.f;
@@ -597,15 +492,6 @@ private:
   float wow_mix_ = 0.f;
   float hold_counter_ = 0.f;
   float held_sample_ = 0.f;
-  float unison_phase_[kUnisonCount] = {};
-  float unison_w0_[kUnisonCount] = {};
-  float unison_gain_[kUnisonCount] = {};
-  float unison_target_gain_[kUnisonCount] = {};
-  float saw_idx_[kUnisonCount] = {};
-  float sqr_idx_[kUnisonCount] = {};
-  float par_idx_[kUnisonCount] = {};
-  float unison_norm_ = 1.f;
-  float unison_target_norm_ = 1.f;
   TransportState transport_state_ = TransportState::Idle;
   bool active_ = false;
 };

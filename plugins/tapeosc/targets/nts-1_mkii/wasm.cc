@@ -179,6 +179,11 @@ void noteOff(uint8_t note)
   processor.noteOff(note);
 }
 
+bool releasesItself()
+{
+  return true;
+}
+
 EMSCRIPTEN_BINDINGS(my_module)
 {
   value_object<AudioWorkletParameter>("AudioWorkletParameter")
@@ -202,6 +207,8 @@ EMSCRIPTEN_BINDINGS(my_module)
   function("noteOn", &noteOn);
 
   function("noteOff", &noteOff);
+
+  function("releasesItself", &releasesItself);
 }
 
 bool ProcessAudio(int numInputs, const AudioSampleFrame *inputs,
