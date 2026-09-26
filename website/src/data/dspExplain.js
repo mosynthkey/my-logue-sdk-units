@@ -659,11 +659,11 @@ export const dspExplainById = {
   In[Audio in] --> Mix`,
   },
   tapeosc: {
-    en: "Tape-style oscillator: one logue band-limited saw, square, triangle, or sine whose phase advances at tape speed. Note-on ramps that speed up over START milliseconds, then the motor stays at full speed. The host amp envelope fades the release. Wow is 0-100% at one tenth of the old depth.",
-    ja: "テープ風OSCです。logueの帯域制限 saw/square/triangle/sine の位相をテープ速度で進めます。ノートオンで START（ms）かけて全速まで回り、その後は全速のままです。離鍵後の音量はホストのアンプEGが決めます。ワウは 0-100% で従来の 1/10 の深さです。",
+    en: "Tape-style oscillator: one logue band-limited saw, square, triangle, or sine whose phase advances at tape speed. Note-on ramps that speed up over START milliseconds with CURVE shaping the rise (0 slow-then-fast, 64 linear, 127 fast-then-settle), then the motor stays at full speed. The host amp envelope fades the release. Wow is 0-100% at one tenth of the old depth.",
+    ja: "テープ風OSCです。logueの帯域制限 saw/square/triangle/sine の位相をテープ速度で進めます。ノートオンで START（ms）かけて全速まで回り、CURVE（0=ゆっくり始めて急加速、64=直線、127=先に上がって収束）で形を変えられます。離鍵後の音量はホストのアンプEGが決めます。ワウは 0-100% で従来の 1/10 の深さです。",
     mermaid: `flowchart LR
   Src[BL saw sqr tri sine] --> Phase[Phase at tape speed]
-  Transport[Start ms] --> Phase
+  Transport[Start ms and Curve] --> Phase
   Wow[Wow 0 to 100 percent] --> Phase
   Phase --> LPF[Motor LPF] --> Out[Out]`,
   },

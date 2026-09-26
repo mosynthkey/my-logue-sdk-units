@@ -3,11 +3,11 @@
 /*
  * File: tapeosc_engine.h
  *
- * Tape-style varispeed oscillator. Playback rate slews from 0 to 1 on note-on
- * and then stays at full speed. The band-limited source phase advances at
- * pitch * playback_rate. A short circular recording cannot hold a slow start:
- * the write head laps the read head and the linear read of that splice is the
- * rattling "staircase" on spin-up.
+ * Tape-style varispeed oscillator. Playback rate ramps from 0 to 1 over START
+ * with a CURVE-shaped rise, then stays at full speed. The band-limited source
+ * phase advances at pitch * playback_rate. A short circular recording cannot
+ * hold a slow start: the write head laps the read head and the linear read of
+ * that splice is the rattling "staircase" on spin-up.
  *
  * The source is one logue mipmapped oscillator (osc_bl2_sawf / sqrf / parf
  * or osc_sinf). NTS-1 mkII and microKORG2 both export those tables.
@@ -45,6 +45,7 @@ public:
   {
     kWaveform = 0U,
     kStart,
+    kCurve,
     kWow,
     kNumParams
   };
@@ -60,6 +61,7 @@ public:
   {
     Waveform waveform = WAVEFORM_SAW;
     float start_sec = 0.093f;
+    float curve = 0.5f;
     float wow = 0.f;
   };
 
@@ -68,6 +70,7 @@ public:
     Params params;
     params.waveform = WAVEFORM_SAW;
     params.start_sec = 0.093f;
+    params.curve = 0.5f;
     params.wow = 0.f;
     setParams(params);
   }
@@ -75,6 +78,7 @@ public:
   void reset()
   {
     playback_rate_ = 0.f;
+    start_progress_ = 0.f;
     lpf_state_ = 0.f;
     wow_phase_ = 0.f;
     flutter_phase_ = 0.f;
@@ -108,6 +112,21 @@ public:
     case kStart:
       params.start_sec = millisecondsToSeconds(value);
       break;
+    case kCurve:
+    {
+      // 64 is exact linear. 0 and 127 are the ease extremes.
+      float curve;
+      if (value <= 64)
+        curve = static_cast<float>(value) * (0.5f / 64.f);
+      else
+        curve = 0.5f + static_cast<float>(value - 64) * (0.5f / 63.f);
+      if (curve < 0.f)
+        curve = 0.f;
+      if (curve > 1.f)
+        curve = 1.f;
+      params.curve = curve;
+      break;
+    }
     case kWow:
     {
       float wow = static_cast<float>(value) * 0.01f;
@@ -143,7 +162,7 @@ public:
   void setParams(const Params &params)
   {
     params_ = params;
-    updateTransportCoeffs();
+    updateStartInc();
     updateFilterCoeffs();
   }
 
@@ -159,6 +178,7 @@ public:
   void beginStart()
   {
     playback_rate_ = 0.f;
+    start_progress_ = 0.f;
     lpf_state_ = 0.f;
     transport_state_ = TransportState::Starting;
     active_ = true;
@@ -228,15 +248,29 @@ private:
     return fractional;
   }
 
-  void updateTransportCoeffs()
+  void updateStartInc()
   {
-    // 0 ms would divide by zero. A coefficient of 1 reaches full speed on the first sample.
     if (params_.start_sec <= 0.f)
-    {
-      start_coeff_ = 1.f;
-      return;
-    }
-    start_coeff_ = 1.f - expf(-1.f / (params_.start_sec * getSampleRate()));
+      start_inc_ = 0.f;
+    else
+      start_inc_ = 1.f / (params_.start_sec * getSampleRate());
+  }
+
+  // 0 = ease-in (slow then fast), 64 = linear, 127 = ease-out (fast then settle).
+  static float applyStartCurve(float progress, float curve01)
+  {
+    if (progress <= 0.f)
+      return 0.f;
+    if (progress >= 1.f)
+      return 1.f;
+
+    const float bipolar = curve01 * 2.f - 1.f;
+    float exponent;
+    if (bipolar <= 0.f)
+      exponent = 1.f - bipolar * 3.f;
+    else
+      exponent = 1.f / (1.f + bipolar * 3.f);
+    return powf(progress, exponent);
   }
 
   static float getSampleRate() { return static_cast<float>(k_samplerate); }
@@ -280,11 +314,24 @@ private:
     switch (transport_state_)
     {
     case TransportState::Starting:
-      playback_rate_ += (1.f - playback_rate_) * start_coeff_;
-      if (playback_rate_ > 0.9995f)
+      if (params_.start_sec <= 0.f || start_inc_ <= 0.f)
       {
         playback_rate_ = 1.f;
+        start_progress_ = 1.f;
         transport_state_ = TransportState::Running;
+        break;
+      }
+
+      start_progress_ += start_inc_;
+      if (start_progress_ >= 1.f)
+      {
+        playback_rate_ = 1.f;
+        start_progress_ = 1.f;
+        transport_state_ = TransportState::Running;
+      }
+      else
+      {
+        playback_rate_ = applyStartCurve(start_progress_, params_.curve);
       }
       break;
 
@@ -323,7 +370,8 @@ private:
 
   Params params_;
   float playback_rate_ = 0.f;
-  float start_coeff_ = 0.f;
+  float start_progress_ = 0.f;
+  float start_inc_ = 0.f;
   float base_w0_ = 0.f;
   float base_note_ = 60.f;
   float phase_ = 0.f;
