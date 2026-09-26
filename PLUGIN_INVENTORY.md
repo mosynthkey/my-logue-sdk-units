@@ -170,7 +170,7 @@
 
 - **TapeOsc** (`tapeosc`) — osc（実験的）
   - 対応: nts-1_mkii, microkorg2
-  - テープモーター始動/停止つきバリスピード・オシレータ。プラットフォームの帯域制限波形をテープのように減速。START/STOPはms、UNI/DETはHyperSaw式。
+  - テープモーター始動/停止つきバリスピード・オシレータ。プラットフォームの帯域制限波形をテープのように減速。START/STOPはms、UNIは1-8本、DETは0-100%。
 
 - **TechnoRumble** (`technorumble`) — fx（実験的）
   - 対応: nts-1_mkii, nts-3_kaoss
