@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StepGrain — grain timing</title>
+<style>
+  :root {
+    --paper: #efe6d6;
+    --card: #fffaf2;
+    --ink: #1d1914;
+    --muted: #5e564c;
+    --line: #e3d7c4;
+    --attack: #e0872f;
+    --sustain: #1f7a68;
+    --release: #d4526e;
+    --drop: #b42318;
+    --band: #2c5f97;
+    --ghost: #cfc3ae;
+    --focus: #1d1914;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 500px at 10% -10%, #f7efe2, transparent 60%),
+      var(--paper);
+    color: var(--ink);
+    font-family: "WenQuanYi Micro Hei", "Droid Sans Fallback", "Segoe UI", sans-serif;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 80px; }
+  header h1 { margin: 0 0 8px; font-size: 2.4rem; letter-spacing: -0.03em; line-height: 1; }
+  .kicker { margin: 0 0 8px; color: var(--muted); font-size: 0.82rem; letter-spacing: 0.08em; text-transform: uppercase; }
+  .lede { margin: 0; font-size: 1.05rem; max-width: 46rem; }
+  .path {
+    display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none;
+  }
+  .path li {
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 12px; font-size: 0.88rem;
+  }
+  .path li span { color: var(--muted); margin-right: 6px; }
+  .controls {
+    position: sticky; top: 0; z-index: 3;
+    margin: 22px -20px 8px; padding: 12px 20px 14px;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .control-grid { display: grid; gap: 10px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .row strong { min-width: 4.2rem; font-size: 0.78rem; letter-spacing: 0.06em; }
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+  .seg button, .play {
+    border: 1px solid #d9cdb8; background: var(--card); color: var(--ink);
+    border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 0.88rem; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .play { background: var(--sustain); color: white; border-color: var(--sustain); }
+  .slider { display: flex; flex: 1 1 220px; gap: 8px; align-items: center; min-width: 220px; }
+  .slider input { flex: 1; accent-color: var(--ink); }
+  .slider output { min-width: 8.5rem; font-variant-numeric: tabular-nums; font-size: 0.88rem; }
+  section.figure {
+    margin-top: 22px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 18px 18px 16px;
+  }
+  section.figure h2 { margin: 0 0 8px; font-size: 1.25rem; }
+  section.figure p { margin: 0 0 10px; }
+  .sentence {
+    font-size: 1.02rem; background: #f3ecdf; border-radius: 10px; padding: 10px 12px; margin: 8px 0 12px;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px 16px; margin: 0 0 10px; padding: 0; list-style: none; font-size: 0.88rem; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .swatch.attack { background: var(--attack); }
+  .swatch.sustain { background: var(--sustain); }
+  .swatch.release { background: var(--release); }
+  .swatch.ghost { background: repeating-linear-gradient(135deg, #e7dcc8, #e7dcc8 4px, #cfc3ae 4px, #cfc3ae 8px); }
+  .swatch.drop { background: var(--drop); }
+  .length-chart { display: grid; grid-template-columns: 6.5rem 1fr; gap: 6px 10px; align-items: center; margin: 8px 0 12px; }
+  .length-chart .name { font-size: 0.82rem; color: var(--muted); }
+  .track-wrap { background: #f6f0e6; border-radius: 6px; overflow: hidden; }
+  .track { display: flex; height: 32px; }
+  .track span { display: flex; align-items: center; justify-content: center; min-width: 2px; color: white; font-size: 0.72rem; overflow: hidden; white-space: nowrap; }
+  .track .attack { background: var(--attack); }
+  .track .sustain { background: var(--sustain); }
+  .track .release { background: var(--release); }
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: #fffdf9; }
+  canvas { display: block; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin: 12px 0 0; }
+  .stats div { background: #f6f0e6; border-radius: 8px; padding: 8px 10px; }
+  .stats dt { margin: 0; color: var(--muted); font-size: 0.75rem; letter-spacing: 0.04em; }
+  .stats dd { margin: 2px 0 0; font-variant-numeric: tabular-nums; }
+  .warn { background: #fff1e4; border: 1px solid #f0c9a0; border-radius: 10px; padding: 10px 12px; }
+  .note { color: var(--muted); font-size: 0.92rem; }
+  details { margin-top: 18px; }
+  details pre {
+    overflow: auto; background: #221e1a; color: #f4ecdf; border-radius: 10px; padding: 14px;
+    font-family: "WenQuanYi Micro Hei Mono", ui-monospace, monospace; font-size: 0.82rem; line-height: 1.45;
+  }
+  .split { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 12px; }
+  @media (max-width: 800px) {
+    .split { grid-template-columns: 1fr; }
+    header h1 { font-size: 2rem; }
+    .controls { margin-left: -20px; margin-right: -20px; }
+  }
+  #error { display: none; background: #fde8e6; border: 1px solid #f0b4ae; padding: 10px 12px; border-radius: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="kicker">NTS-3 · stepgrain.h · 48 kHz</p>
+    <h1>StepGrain</h1>
+    <p class="lede">AUDIO IN をモノラルで最大 3 秒ため、タッチでその音を止めて、テンポのグリッドに合わせて粒にして重ねるエフェクトです。粒の長さは STEPS と ENV、出す時刻は STEPS、1 回に何粒出すかとどこから読むかは DENS が決めます。</p>
+    <ol class="path">
+      <li><span>1</span>(L+R)/2 をリングへ</li>
+      <li><span>2</span>タッチでフリーズ</li>
+      <li><span>3</span>STEPS ごとに発火</li>
+      <li><span>4</span>ENV の包絡で再生</li>
+    </ol>
+  </header>
+
+  <div id="error"></div>
+
+  <div class="controls">
+    <div class="control-grid">
+      <div class="row">
+        <strong>BPM</strong>
+        <label class="slider">
+          <input id="bpm" type="range" min="40" max="300" value="120">
+          <output id="bpm-out" for="bpm">120</output>
+        </label>
+        <button class="play" id="play" type="button">Play</button>
+      </div>
+      <div class="row">
+        <strong>STEPS</strong>
+        <div class="seg" id="steps" role="group" aria-label="STEPS">
+          <button type="button" data-value="0">4 Bar</button>
+          <button type="button" data-value="1">2 Bar</button>
+          <button type="button" data-value="2">16 St</button>
+          <button type="button" data-value="3">8 St</button>
+          <button type="button" data-value="4">4 St</button>
+          <button type="button" data-value="5">2 St</button>
+          <button type="button" data-value="6" aria-pressed="true">1 St</button>
+          <button type="button" data-value="7">Half</button>
+        </div>
+      </div>
+      <div class="row">
+        <strong>ENV</strong>
+        <div class="seg" id="env" role="group" aria-label="ENV">
+          <button type="button" data-value="0">Off</button>
+          <button type="button" data-value="1">Half</button>
+          <button type="button" data-value="2">1 St</button>
+          <button type="button" data-value="3">2 St</button>
+          <button type="button" data-value="4" aria-pressed="true">4 St</button>
+        </div>
+      </div>
+      <div class="row">
+        <strong>DENS</strong>
+        <label class="slider">
+          <input id="dens" type="range" min="0" max="1023" value="1023">
+          <output id="dens-out" for="dens">1023</output>
+        </label>
+      </div>
+      <div class="row">
+        <strong>OCT</strong>
+        <label class="slider">
+          <input id="oct" type="range" min="0" max="1023" value="512">
+          <output id="oct-out" for="oct">512</output>
+        </label>
+      </div>
+      <div class="row">
+        <strong>REVS</strong>
+        <label class="slider">
+          <input id="revs" type="range" min="0" max="100" value="50">
+          <output id="revs-out" for="revs">50%</output>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <p class="sentence" id="sentence"></p>
+
+  <section class="figure" id="fig-shape">
+    <h2>図1. トリガ、長さ、attack / release</h2>
+    <p>STEPS はトリガの間隔です。音量が 1 の区間も、バッファに収まるときは同じ長さです。ENV はその前後に同じ長さののりしろを足し、前が attack、後ろが release です。要求する全長は本体 + 2 × のりしろです。包絡は smoothstep で、平坦な区間は 1 です。</p>
+    <p class="note">ENV が Off のとき、のりしろの譜面長は 0 で、実装は各 8 samples です。フリーズしたサンプルでもグリッドを待たず 1 回発火します。その後は STEPS の間隔で、Half は 16 分とその真ん中です。図の時刻 0 は、その等間隔グリッドです。</p>
+    <ul class="legend">
+      <li><i class="swatch attack"></i>Attack（ENV）</li>
+      <li><i class="swatch sustain"></i>Body（STEPS）</li>
+      <li><i class="swatch release"></i>Release（ENV）</li>
+      <li><i class="swatch ghost"></i>Requested（切り詰め前）</li>
+    </ul>
+    <div class="length-chart" id="length-chart"></div>
+    <p class="warn" id="clamp-note" hidden></p>
+    <div class="scroll"><canvas id="c-env" aria-label="Grain envelope"></canvas></div>
+    <p class="note" id="env-caption"></p>
+    <div class="scroll" id="scroll-time"><canvas id="c-time" aria-label="Trigger timeline"></canvas></div>
+    <dl class="stats" id="shape-stats"></dl>
+  </section>
+
+  <section class="figure" id="fig-dens">
+    <h2>図2. DENS と 12 スロット</h2>
+    <p>DENS はパッド X（0〜1023）です。smoothstep したあと、1 回のトリガで出す粒は 1〜6、読み位置のばらつきはバッファ長の ±5%〜±35% になります。同時に鳴る粒は 12 までです。空きが無く、どの粒も寿命の 65% より前なら、その発火は捨てます。65% を過ぎた粒があれば、いちばん進んだものを新しい粒に置き換えます。</p>
+    <div class="split">
+      <div class="scroll"><canvas id="c-dens" aria-label="Density curve"></canvas></div>
+      <dl class="stats" id="dens-stats"></dl>
+    </div>
+    <p class="note">音量補正は切り詰め前の比です。overlap = 粒数 × (1 + ENV の 16 分数 / STEPS の 16 分数)、gain ≈ 1.85 / √overlap。ENV Off は比が 0 なので、8 samples ののりしろは音量に入りません。各粒はこの gain に 0.75〜1.10 の乱数を掛けます。</p>
+    <ul class="legend">
+      <li><i class="swatch drop"></i>Dropped spawn</li>
+      <li><i class="swatch sustain"></i>白い刻み = 寿命の 65%（ここを過ぎると置換可）</li>
+    </ul>
+    <div class="scroll" id="scroll-slots"><canvas id="c-slots" aria-label="Voice slots"></canvas></div>
+  </section>
+
+  <section class="figure" id="fig-buffer">
+    <h2>図3. グレインの取得</h2>
+    <p>開始位置はステップ番号ではありません。フリーズ窓の 70% を中心に、±spray の一様乱数です。左が古い音、右がタッチ直前です。順方向はその位置から毎サンプル rate だけ進みます。逆方向は、開始を出力のグレイン長だけ先へずらしてから、同じ速さで戻ります。窓の端では先頭へ戻って線形補間します。</p>
+    <p class="note">rate は OCT（パッド Y）です。Y を 0〜1 として 0〜2 オクターブに直線対応し、隣り合う 2 音（rate 1 / 2 / 4）を確率で混ぜます。中央の 512 はほぼ +1 oct です。REVS はその粒を逆再生にする確率です。定位は SPRD の幅で等パワーに振れます。</p>
+    <div class="scroll"><canvas id="c-buf" aria-label="Frozen buffer read position"></canvas></div>
+    <dl class="stats" id="buf-stats"></dl>
+    <p class="note">録音はフリーズするまで続きます。使える音（2048 samples 以上、ピーク 0.003 以上、離してから 0.25 秒以上）があればタッチですぐ止め、無ければ 0.25 秒録ってから止めます。離すと粒を消して録音に戻ります。出力の MIX / MODE（音量か、原音 LPF + 粒 HPF）はこの図の外です。</p>
+  </section>
+
+  <details>
+    <summary>式（stepgrain.h と同じ）</summary>
+    <pre id="formula"></pre>
+  </details>
+</div>
+<script>
+const SR = 48000;
+const FREEZE = 144000;
+const MAX_GRAINS = 12;
+const f = Math.fround;
+const FONT = '"WenQuanYi Micro Hei", "Droid Sans Fallback", sans-serif';
+
+const PERIODS = [
+  { label: "4 Bar", six: 64 },
+  { label: "2 Bar", six: 32 },
+  { label: "16 St", six: 16 },
+  { label: "8 St", six: 8 },
+  { label: "4 St", six: 4 },
+  { label: "2 St", six: 2 },
+  { label: "1 St", six: 1 },
+  { label: "Half", six: 0.5 },
+];
+const SEAMS = [
+  { label: "Off", six: 0 },
+  { label: "Half", six: 0.5 },
+  { label: "1 St", six: 1 },
+  { label: "2 St", six: 2 },
+  { label: "4 St", six: 4 },
+];
+const OCT_NAME = ["unison ×1", "+1 oct ×2", "+2 oct ×4"];
+
+const state = {
+  bpm: 120,
+  steps: 6,
+  env: 4,
+  dens: 1023,
+  oct: 512,
+  revs: 50,
+  playing: false,
+  playhead: 0,
+};
+
+function clamp01(value) {
+  if (value < 0) return 0;
+  if (value > 1) return 1;
+  return value;
+}
+
+function norm10(value) {
+  return f(value * f(1 / 1023));
+}
+
+function samplesPerBeat(bpm) {
+  const clamped = Math.min(300, Math.max(40, bpm));
+  return Math.floor(f(f(SR) * f(60) / f(clamped)));
+}
+
+function periodLengthSamples(six) {
+  const beat = f(samplesPerBeat(state.bpm));
+  let samples = f(f(beat * f(0.25)) * f(six));
+  if (samples < 48) samples = 48;
+  return Math.floor(f(samples + f(0.5)));
+}
+
+function seamMarginSamples(six) {
+  if (six <= 0) return 8;
+  const beat = f(samplesPerBeat(state.bpm));
+  let samples = f(f(beat * f(0.25)) * f(six));
+  if (samples < 8) samples = 8;
+  return Math.floor(f(samples + f(0.5)));
+}
+
+function geometry() {
+  const period = PERIODS[state.steps];
+  const seam = SEAMS[state.env];
+  const body = periodLengthSamples(period.six);
+  const marginParam = seamMarginSamples(seam.six);
+  const requested = body + 2 * marginParam;
+  let length = requested;
+  let margin = marginParam;
+  let clamped = false;
+  if (FREEZE >= 32 && length > FREEZE) {
+    clamped = true;
+    length = FREEZE;
+    margin = Math.floor((length - 16) / 2);
+    if (margin < 8) margin = 8;
+    if (2 * margin >= length) margin = Math.floor(length / 4);
+    if (margin < 1) margin = 1;
+  }
+  let attack = margin < 1 ? 1 : margin;
+  let release = margin < 1 ? 1 : margin;
+  if (attack + release > length) {
+    attack = Math.floor(length / 2);
+    release = length - attack;
+    if (attack < 1) attack = 1;
+    if (release < 1) release = 1;
+  }
+  const sustain = length - attack - release;
+  return {
+    period, seam, body, marginParam, requested, length, attack, release, sustain, clamped,
+  };
+}
+
+function density(raw) {
+  const x = f(clamp01(norm10(raw)));
+  const smooth = f(f(x * x) * f(f(3) - f(f(2) * x)));
+  const count = 1 + Math.floor(f(f(smooth * f(5)) + f(0.5)));
+  const spray = f(f(0.05) + f(smooth * f(0.30)));
+  return { x, smooth, count, spray };
+}
+
+function octaveMix(raw) {
+  const target = f(f(clamp01(norm10(raw))) * f(2));
+  const lo = Math.trunc(target);
+  let hi = lo + 1;
+  if (hi > 2) hi = 2;
+  const frac = hi === lo ? 0 : target - lo;
+  return { lo, hi, pLo: 1 - frac, pHi: frac, target };
+}
+
+function rateOfOctave(octaves) {
+  if (octaves >= 1.5) return 4;
+  if (octaves >= 0.5) return 2;
+  return 1;
+}
+
+function envelopeAt(age, length, attack, release) {
+  if (length <= 1) return 0;
+  if (age < attack) {
+    const phase = age / attack;
+    return phase * phase * (3 - 2 * phase);
+  }
+  if (age >= length - release) {
+    const phase = (length - age) / release;
+    return phase * phase * (3 - 2 * phase);
+  }
+  return 1;
+}
+
+function triggerInterval(geo) {
+  return geo.body;
+}
+
+function viewPlan(geo) {
+  const interval = triggerInterval(geo);
+  const rows = geo.length > interval * 1.2 ? 6 : 3;
+  const windowSamples = interval * (rows - 1) + geo.length + Math.min(interval, geo.length) * 0.2;
+  return { interval, rows, windowSamples };
+}
+
+function simulate(geo, count, windowSamples) {
+  const interval = triggerInterval(geo);
+  const slots = Array.from({ length: MAX_GRAINS }, () => null);
+  const grains = [];
+  const drops = new Map();
+  let stolen = 0;
+  const steps = Math.floor(windowSamples / interval);
+  for (let step = 0; step <= steps; step++) {
+    const time = step * interval;
+    for (let spawn = 0; spawn < count; spawn++) {
+      let slot = -1;
+      for (let index = 0; index < MAX_GRAINS; index++) {
+        const occupant = slots[index];
+        if (occupant === null || occupant.end <= time) {
+          slot = index;
+          break;
+        }
+      }
+      let tookOver = false;
+      if (slot < 0) {
+        let best = -1;
+        let bestProgress = 0.65;
+        for (let index = 0; index < MAX_GRAINS; index++) {
+          const occupant = slots[index];
+          const progress = (time - occupant.start) / occupant.full;
+          if (progress > bestProgress) {
+            bestProgress = progress;
+            best = index;
+          }
+        }
+        if (best < 0) {
+          drops.set(time, (drops.get(time) || 0) + 1);
+          continue;
+        }
+        slots[best].end = time;
+        slot = best;
+        tookOver = true;
+        stolen += 1;
+      }
+      const grain = {
+        slot,
+        start: time,
+        end: time + geo.length,
+        full: geo.length,
+        attack: geo.attack,
+        release: geo.release,
+        tookOver,
+      };
+      slots[slot] = grain;
+      grains.push(grain);
+    }
+  }
+  let peak = 0;
+  let running = 0;
+  const events = [];
+  for (const grain of grains) {
+    events.push({ t: grain.start, delta: 1 });
+    events.push({ t: grain.end, delta: -1 });
+  }
+  events.sort((a, b) => a.t - b.t || a.delta - b.delta);
+  for (const event of events) {
+    running += event.delta;
+    if (running > peak) peak = running;
+  }
+  let dropTotal = 0;
+  for (const value of drops.values()) dropTotal += value;
+  return { grains, drops, dropTotal, stolen, peak };
+}
+
+function gainOf(geo, count) {
+  const temporal = geo.period.six > 0 ? geo.seam.six / geo.period.six : 0;
+  const overlap = Math.max(1, count * (1 + temporal));
+  return { temporal, overlap, gain: 1.85 / Math.sqrt(overlap) };
+}
+
+function formatSamples(samples) {
+  const ms = samples / SR * 1000;
+  const time = ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${ms >= 10 ? ms.toFixed(0) : ms.toFixed(1)} ms`;
+  return `${samples.toLocaleString("en-US")} samples · ${time}`;
+}
+
+function pct(value) {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function fitCanvas(canvas, cssW, cssH) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.style.width = `${cssW}px`;
+  canvas.style.height = `${cssH}px`;
+  canvas.width = Math.max(1, Math.round(cssW * dpr));
+  canvas.height = Math.max(1, Math.round(cssH * dpr));
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+  ctx.font = `12px ${FONT}`;
+  ctx.fillStyle = "#1d1914";
+  ctx.strokeStyle = "#1d1914";
+  ctx.lineWidth = 1;
+  return ctx;
+}
+
+function timeScale(windowSamples, containerW) {
+  const cssW = Math.max(320, containerW);
+  return { cssW, px: cssW / windowSamples };
+}
+
+function regionColor(kind) {
+  if (kind === "attack") return "#e0872f";
+  if (kind === "release") return "#d4526e";
+  return "#1f7a68";
+}
+
+function drawRegions(ctx, xAt, y, h, start, end, attackEnd, releaseStart) {
+  const spans = [
+    ["attack", start, Math.min(end, attackEnd)],
+    ["sustain", Math.max(start, attackEnd), Math.min(end, releaseStart)],
+    ["release", Math.max(start, releaseStart), end],
+  ];
+  for (const [kind, a, b] of spans) {
+    if (b <= a) continue;
+    ctx.fillStyle = regionColor(kind);
+    ctx.fillRect(xAt(a), y, Math.max(0, xAt(b) - xAt(a)), h);
+  }
+}
+
+function strokeEnvelope(ctx, xAt, yBase, ampH, length, attack, release) {
+  const steps = 240;
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const age = (length * i) / steps;
+    const env = envelopeAt(age, length, attack, release);
+    const x = xAt(age);
+    const y = yBase - env * ampH;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = "#1d1914";
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+}
+
+function drawEnvelope(model, cssW) {
+  const canvas = document.getElementById("c-env");
+  const cssH = 168;
+  const ctx = fitCanvas(canvas, cssW, cssH);
+  const geo = model.geo;
+  const padL = 16;
+  const padR = 16;
+  const padT = 16;
+  const base = cssH - 28;
+  const ampH = base - padT - 8;
+  const xAt = (age) => padL + (age / geo.length) * (cssW - padL - padR);
+  ctx.save();
+  ctx.globalAlpha = 0.38;
+  drawRegions(
+    ctx,
+    (sample) => xAt(sample),
+    padT,
+    base - padT,
+    0,
+    geo.length,
+    geo.attack,
+    geo.length - geo.release,
+  );
+  ctx.restore();
+  ctx.beginPath();
+  const steps = 240;
+  for (let index = 0; index <= steps; index++) {
+    const age = (geo.length * index) / steps;
+    const env = envelopeAt(age, geo.length, geo.attack, geo.release);
+    const x = xAt(age);
+    const y = base - env * ampH;
+    if (index === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.lineTo(xAt(geo.length), base);
+  ctx.lineTo(xAt(0), base);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(29,25,20,0.12)";
+  ctx.fill();
+  strokeEnvelope(ctx, xAt, base, ampH, geo.length, geo.attack, geo.release);
+  ctx.strokeStyle = "#1d1914";
+  ctx.beginPath();
+  ctx.moveTo(padL, base + 0.5);
+  ctx.lineTo(cssW - padR, base + 0.5);
+  ctx.stroke();
+  ctx.fillStyle = "#1d1914";
+  ctx.font = `12px ${FONT}`;
+  const tags = [
+    [geo.attack / 2, "attack"],
+    [geo.attack + geo.sustain / 2, "body"],
+    [geo.length - geo.release / 2, "release"],
+  ];
+  for (const [age, label] of tags) {
+    const width = label === "body" ? geo.sustain : (label === "attack" ? geo.attack : geo.release);
+    if (width / geo.length < 0.08) continue;
+    ctx.textAlign = "center";
+    ctx.fillText(label, xAt(age), padT + 16);
+  }
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#5e564c";
+  ctx.fillText("smoothstep(p) = p² (3 − 2p)", padL, cssH - 8);
+  if (geo.sustain / geo.length < 0.04) {
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#1d1914";
+    ctx.fillText(`flat ${geo.sustain} samples`, xAt(geo.attack + geo.sustain / 2), base - ampH - 6);
+  }
+}
+
+function drawTimeline(model, containerW) {
+  const canvas = document.getElementById("c-time");
+  const { geo, plan } = model;
+  const scale = timeScale(plan.windowSamples, containerW);
+  const rowH = 62;
+  const axisH = 28;
+  const cssH = axisH + plan.rows * rowH + 10;
+  const ctx = fitCanvas(canvas, scale.cssW, cssH);
+  const beat = samplesPerBeat(state.bpm);
+  const bar = beat * 4;
+  const xAt = (sample) => (sample / plan.windowSamples) * scale.cssW;
+
+  for (let barIndex = 0; barIndex * bar < plan.windowSamples; barIndex++) {
+    const x0 = xAt(barIndex * bar);
+    const x1 = xAt(Math.min(plan.windowSamples, (barIndex + 1) * bar));
+    ctx.fillStyle = barIndex % 2 === 0 ? "#fffdf9" : "#f7f1e6";
+    ctx.fillRect(x0, axisH, x1 - x0, cssH - axisH);
+    ctx.fillStyle = "#5e564c";
+    ctx.textAlign = "left";
+    ctx.fillText(`${barIndex + 1}`, x0 + 4, 16);
+  }
+
+  const triggerCount = Math.floor(plan.windowSamples / plan.interval) + 1;
+  for (let index = 0; index < triggerCount; index++) {
+    const x = xAt(index * plan.interval);
+    ctx.strokeStyle = "rgba(29,25,20,0.18)";
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5, axisH);
+    ctx.lineTo(x + 0.5, cssH);
+    ctx.stroke();
+  }
+
+  const shown = Math.min(plan.rows, triggerCount);
+  for (let row = 0; row < shown; row++) {
+    const start = row * plan.interval;
+    const y = axisH + row * rowH + 16;
+    const h = 36;
+    const xSample = (sample) => xAt(sample);
+    if (geo.clamped) {
+      ctx.fillStyle = "#e7dcc8";
+      ctx.fillRect(xAt(start), y, Math.max(0, xAt(Math.min(plan.windowSamples, start + geo.requested)) - xAt(start)), 6);
+    }
+    const visibleEnd = Math.min(plan.windowSamples, start + geo.length);
+    drawRegions(
+      ctx,
+      xSample,
+      y + 8,
+      h - 8,
+      start,
+      visibleEnd,
+      start + geo.attack,
+      start + geo.length - geo.release,
+    );
+    strokeEnvelope(
+      ctx,
+      (age) => xAt(start + age),
+      y + h,
+      h - 12,
+      geo.length,
+      geo.attack,
+      geo.release,
+    );
+    const tag = `×${model.dens.count}`;
+    ctx.font = `12px ${FONT}`;
+    const tagW = ctx.measureText(tag).width + 8;
+    ctx.fillStyle = "rgba(255,250,242,0.88)";
+    ctx.fillRect(xAt(start) + 3, y + 10, tagW, 16);
+    ctx.fillStyle = "#1d1914";
+    ctx.textAlign = "left";
+    ctx.fillText(tag, xAt(start) + 7, y + 22);
+  }
+
+  if (state.playing && state.playhead > 0 && state.playhead < plan.windowSamples) {
+    ctx.strokeStyle = "#b42318";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(xAt(state.playhead) + 0.5, 0);
+    ctx.lineTo(xAt(state.playhead) + 0.5, cssH);
+    ctx.stroke();
+  }
+  canvas.setAttribute("aria-label", `Triggers every ${formatSamples(plan.interval)}, grain ${formatSamples(geo.length)}`);
+}
+
+function drawSlots(model, containerW) {
+  const canvas = document.getElementById("c-slots");
+  const { geo, plan, sim } = model;
+  const scale = timeScale(plan.windowSamples, containerW);
+  const slotH = 16;
+  const gap = 3;
+  const axisH = 26;
+  const left = 28;
+  const cssH = axisH + MAX_GRAINS * (slotH + gap) + 16;
+  const ctx = fitCanvas(canvas, scale.cssW, cssH);
+  const xAt = (sample) => left + (sample / plan.windowSamples) * (scale.cssW - left - 8);
+  const beat = samplesPerBeat(state.bpm);
+  const bar = beat * 4;
+
+  for (let barIndex = 0; barIndex * bar < plan.windowSamples; barIndex++) {
+    ctx.fillStyle = barIndex % 2 === 0 ? "#fffdf9" : "#f7f1e6";
+    const x0 = xAt(barIndex * bar);
+    const x1 = xAt(Math.min(plan.windowSamples, (barIndex + 1) * bar));
+    ctx.fillRect(x0, axisH, x1 - x0, cssH - axisH);
+    ctx.fillStyle = "#5e564c";
+    ctx.textAlign = "left";
+    ctx.fillText(`${barIndex + 1}`, x0 + 3, 16);
+  }
+
+  for (let slot = 0; slot < MAX_GRAINS; slot++) {
+    const y = axisH + slot * (slotH + gap);
+    ctx.fillStyle = "#f3ecdf";
+    ctx.fillRect(xAt(0), y, xAt(plan.windowSamples) - xAt(0), slotH);
+    ctx.fillStyle = "#8a8175";
+    ctx.textAlign = "right";
+    ctx.fillText(String(slot + 1), left - 4, y + 12);
+  }
+
+  for (const grain of sim.grains) {
+    const y = axisH + grain.slot * (slotH + gap);
+    const drawEnd = Math.min(grain.end, plan.windowSamples);
+    if (drawEnd <= grain.start) continue;
+    drawRegions(
+      ctx,
+      xAt,
+      y,
+      slotH,
+      grain.start,
+      drawEnd,
+      grain.start + grain.attack,
+      grain.start + grain.full - grain.release,
+    );
+    const stealAt = grain.start + grain.full * 0.65;
+    if (stealAt > grain.start && stealAt < drawEnd) {
+      ctx.strokeStyle = "rgba(255,250,242,0.95)";
+      ctx.beginPath();
+      ctx.moveTo(xAt(stealAt) + 0.5, y + 1);
+      ctx.lineTo(xAt(stealAt) + 0.5, y + slotH - 1);
+      ctx.stroke();
+    }
+  }
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#b42318";
+  for (const [time, count] of sim.drops) {
+    if (time > plan.windowSamples) continue;
+    ctx.fillText(`×${count}`, xAt(time), axisH - 6);
+  }
+
+  if (state.playing && state.playhead > 0 && state.playhead < plan.windowSamples) {
+    ctx.strokeStyle = "#b42318";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(xAt(state.playhead) + 0.5, axisH);
+    ctx.lineTo(xAt(state.playhead) + 0.5, cssH);
+    ctx.stroke();
+  }
+}
+
+function drawDensity(model, cssW) {
+  const canvas = document.getElementById("c-dens");
+  const cssH = 200;
+  const ctx = fitCanvas(canvas, cssW, cssH);
+  const pad = { l: 36, r: 12, t: 16, b: 28 };
+  const w = cssW - pad.l - pad.r;
+  const h = cssH - pad.t - pad.b;
+  const xAt = (norm) => pad.l + norm * w;
+  const ySmooth = (value) => pad.t + (1 - value) * h;
+
+  ctx.strokeStyle = "#e3d7c4";
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t);
+  ctx.lineTo(pad.l, pad.t + h);
+  ctx.lineTo(pad.l + w, pad.t + h);
+  ctx.stroke();
+
+  ctx.beginPath();
+  for (let step = 0; step <= 80; step++) {
+    const norm = step / 80;
+    const smooth = norm * norm * (3 - 2 * norm);
+    const x = xAt(norm);
+    const y = ySmooth(smooth);
+    if (step === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = "#1f7a68";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.beginPath();
+  let previous = null;
+  for (let raw = 0; raw <= 1023; raw++) {
+    const point = density(raw);
+    const x = xAt(point.x);
+    const y = ySmooth((point.count - 1) / 5);
+    if (previous && previous.count !== point.count) {
+      ctx.lineTo(x, ySmooth((previous.count - 1) / 5));
+    }
+    if (raw === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+    previous = point;
+  }
+  ctx.strokeStyle = "#e0872f";
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+
+  const here = model.dens;
+  ctx.strokeStyle = "#1d1914";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(xAt(here.x) + 0.5, pad.t);
+  ctx.lineTo(xAt(here.x) + 0.5, pad.t + h);
+  ctx.stroke();
+  ctx.fillStyle = "#5e564c";
+  ctx.textAlign = "left";
+  ctx.fillText("smooth", pad.l + 4, pad.t + 12);
+  ctx.fillStyle = "#e0872f";
+  ctx.fillText("grains 1–6", pad.l + 64, pad.t + 12);
+  ctx.fillStyle = "#5e564c";
+  ctx.textAlign = "center";
+  ctx.fillText("DENS", pad.l + w / 2, cssH - 8);
+  ctx.textAlign = "left";
+  ctx.fillText("1", 8, ySmooth(0) + 4);
+  ctx.fillText("6", 8, ySmooth(1) + 4);
+}
+
+function wrapSegments(startNorm, deltaNorm) {
+  const segments = [];
+  let pos = startNorm;
+  let remaining = deltaNorm;
+  const sign = remaining >= 0 ? 1 : -1;
+  if (sign < 0 && pos <= 0) pos = 1;
+  for (let guard = 0; guard < 6 && Math.abs(remaining) > 1e-5; guard++) {
+    if (sign > 0) {
+      const room = 1 - pos;
+      const step = Math.min(room, remaining);
+      if (step > 1e-5) segments.push([pos, pos + step]);
+      pos += step;
+      remaining -= step;
+      if (pos >= 1 - 1e-6) pos = 0;
+    } else {
+      const room = pos;
+      const step = Math.min(room, -remaining);
+      if (step > 1e-5) segments.push([pos - step, pos]);
+      pos -= step;
+      remaining += step;
+      if (pos <= 1e-6) pos = 1;
+    }
+  }
+  return segments;
+}
+
+function drawBuffer(model, cssW) {
+  const canvas = document.getElementById("c-buf");
+  const cssH = 250;
+  const ctx = fitCanvas(canvas, cssW, cssH);
+  const padL = 18;
+  const padR = 18;
+  const tapeY = 78;
+  const tapeH = 42;
+  const tapeW = cssW - padL - padR;
+  const xAt = (norm) => padL + clamp01(norm) * tapeW;
+  const { geo, dens, mix, rate } = model;
+  const spray = dens.spray;
+
+  ctx.fillStyle = "#f3ecdf";
+  ctx.fillRect(padL, tapeY, tapeW, tapeH);
+  ctx.strokeStyle = "#1d1914";
+  ctx.strokeRect(padL + 0.5, tapeY + 0.5, tapeW - 1, tapeH - 1);
+
+  const lo = 0.7 - spray;
+  const hi = 0.7 + spray;
+  ctx.fillStyle = "rgba(44,95,151,0.28)";
+  if (lo >= 0 && hi <= 1) {
+    ctx.fillRect(xAt(lo), tapeY, xAt(hi) - xAt(lo), tapeH);
+  } else {
+    if (lo > 0) ctx.fillRect(xAt(lo), tapeY, xAt(1) - xAt(lo), tapeH);
+    if (hi > 1) ctx.fillRect(xAt(0), tapeY, xAt(hi - 1) - xAt(0), tapeH);
+  }
+
+  const rand = unitRandoms(dens.count, 0xC0FFEE01);
+  for (const unit of rand) {
+    let pos = 0.7 + (unit * 2 - 1) * spray;
+    pos -= Math.floor(pos);
+    ctx.fillStyle = "#1d1914";
+    ctx.beginPath();
+    ctx.arc(xAt(pos), tapeY + tapeH / 2, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.strokeStyle = "#1d1914";
+  ctx.beginPath();
+  ctx.moveTo(xAt(0.7) + 0.5, tapeY - 8);
+  ctx.lineTo(xAt(0.7) + 0.5, tapeY + tapeH + 8);
+  ctx.stroke();
+  ctx.fillStyle = "#1d1914";
+  ctx.textAlign = "center";
+  ctx.fillText("70%", xAt(0.7), tapeY - 12);
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#5e564c";
+  ctx.fillText("older", padL, tapeY - 12);
+  ctx.textAlign = "right";
+  ctx.fillText("newer", padL + tapeW, tapeY - 12);
+
+  for (let mark = 0; mark <= 6; mark++) {
+    const norm = mark / 6;
+    ctx.fillStyle = "#8a8175";
+    ctx.textAlign = "center";
+    ctx.fillText(`${(mark * 0.5).toFixed(1)}s`, xAt(norm), tapeY + tapeH + 16);
+  }
+
+  const center = 0.7;
+  const lengthNorm = geo.length / FREEZE;
+  const travel = rate * lengthNorm;
+  const forwardAlpha = 0.25 + 0.75 * (1 - state.revs / 100);
+  const reverseAlpha = 0.25 + 0.75 * (state.revs / 100);
+  ctx.save();
+  ctx.globalAlpha = forwardAlpha;
+  drawTravel(ctx, xAt, tapeY + tapeH + 36, center, travel, "#1f7a68", "forward");
+  ctx.restore();
+  ctx.save();
+  ctx.globalAlpha = reverseAlpha;
+  const reverseStart = center + lengthNorm;
+  drawTravel(ctx, xAt, tapeY + tapeH + 62, reverseStart - Math.floor(reverseStart), -travel, "#b42318", "reverse");
+  ctx.restore();
+
+  ctx.fillStyle = "#5e564c";
+  ctx.textAlign = "left";
+  ctx.fillText(`band ±${pct(spray)}   dots = one trigger (${dens.count})`, padL, cssH - 10);
+  canvas.setAttribute("aria-label", `Read start near 70 percent, spray ${pct(spray)}, rate ${rate}`);
+}
+
+function drawTravel(ctx, xAt, y, startNorm, deltaNorm, color, label) {
+  const turns = Math.abs(deltaNorm);
+  ctx.fillStyle = color;
+  ctx.textAlign = "left";
+  ctx.fillText(label, 18, y + 4);
+  if (turns > 1.02) {
+    ctx.fillStyle = color;
+    ctx.fillRect(xAt(0), y - 4, xAt(1) - xAt(0), 6);
+    ctx.fillText(`×${turns.toFixed(2)} of the buffer`, xAt(0.02), y - 8);
+    return;
+  }
+  const segments = wrapSegments(((startNorm % 1) + 1) % 1, deltaNorm);
+  ctx.fillStyle = color;
+  for (const [a, b] of segments) {
+    const x0 = xAt(Math.min(a, b));
+    const x1 = xAt(Math.max(a, b));
+    ctx.fillRect(x0, y - 4, Math.max(2, x1 - x0), 6);
+  }
+}
+
+function unitRandoms(count, seed) {
+  let rng = seed >>> 0;
+  const values = [];
+  for (let index = 0; index < count; index++) {
+    rng = (Math.imul(rng, 1664525) + 1013904223) >>> 0;
+    values.push((rng >>> 8) / 16777216);
+  }
+  return values;
+}
+
+function stat(title, value) {
+  return `<div><dt>${title}</dt><dd>${value}</dd></div>`;
+}
+
+function renderLengthChart(geo) {
+  const host = document.getElementById("length-chart");
+  const requestedParts = [
+    ["attack", geo.marginParam],
+    ["sustain", geo.body],
+    ["release", geo.marginParam],
+  ];
+  const playedWidth = (geo.length / geo.requested) * 100;
+  host.innerHTML = `
+    <div class="name">Requested</div>
+    <div class="track-wrap"><div class="track">${bars(requestedParts, geo.requested)}</div></div>
+    <div class="name">Played</div>
+    <div class="track-wrap"><div class="track" style="width:${playedWidth}%">${bars(
+      [["attack", geo.attack], ["sustain", geo.sustain], ["release", geo.release]],
+      geo.length,
+    )}</div></div>`;
+}
+
+function bars(parts, total) {
+  return parts.map(([kind, samples]) => {
+    const label = samples / total > 0.12 ? (kind === "sustain" ? "body" : kind) : "";
+    return `<span class="${kind}" style="flex:${samples} 1 0">${label}</span>`;
+  }).join("");
+}
+
+function renderReadouts(model) {
+  const { geo, dens, mix, sim, rate } = model;
+  const g = gainOf(geo, dens.count);
+  document.getElementById("sentence").textContent = geo.clamped
+    ? `${state.bpm} BPM、STEPS ${geo.period.label}、ENV ${geo.seam.label}、DENS ${state.dens}。` +
+      `要求長 ${formatSamples(geo.requested)} は 3 秒を超えるので、再生は ${formatSamples(geo.length)}、平坦部は ${geo.sustain} samples。` +
+      `トリガ間隔は ${formatSamples(geo.body)} のまま、1 回に ${dens.count} 粒。`
+    : `${state.bpm} BPM、STEPS ${geo.period.label}、ENV ${geo.seam.label}、DENS ${state.dens}。` +
+      `本体 ${formatSamples(geo.body)}、のりしろ各 ${formatSamples(geo.marginParam)}、` +
+      `再生する全長 ${formatSamples(geo.length)}。トリガは ${formatSamples(geo.body)} ごと、1 回に ${dens.count} 粒。`;
+
+  document.getElementById("shape-stats").innerHTML = [
+    stat("16th", formatSamples(periodLengthSamples(1))),
+    stat("STEPS body", formatSamples(geo.body)),
+    stat("ENV each side", formatSamples(geo.marginParam)),
+    stat("Played length", formatSamples(geo.length)),
+    stat("Attack", formatSamples(geo.attack)),
+    stat("Flat body", formatSamples(geo.sustain)),
+    stat("Release", formatSamples(geo.release)),
+    stat("Trigger interval", formatSamples(geo.body)),
+  ].join("");
+
+  const clamp = document.getElementById("clamp-note");
+  if (geo.clamped) {
+    clamp.hidden = false;
+    clamp.textContent =
+      `要求長 ${formatSamples(geo.requested)} がフリーズ窓 ${FREEZE.toLocaleString("en-US")} samples（3.0 s）を超えるため、` +
+      `再生長は窓いっぱいです。attack / release は (長さ − 16) / 2 に取り直し、平坦な本体は ${geo.sustain} samples になります。`;
+  } else {
+    clamp.hidden = true;
+  }
+  document.getElementById("env-caption").textContent = geo.clamped
+    ? "黒線が実際の包絡です。切り詰め後の平坦部はごく短く、ほとんどが attack と release です。"
+    : geo.seam.six === 0
+      ? "ENV Off の attack / release は各 8 samples です。図の色帯は細くなります。"
+      : "色帯が attack / body / release、黒線が包絡です。下のタイムラインは同じ時刻軸で、行が 1 回のトリガです。";
+
+  document.getElementById("dens-stats").innerHTML = [
+    stat("smoothstep(DENS)", dens.smooth.toFixed(3)),
+    stat("Grains / trigger", String(dens.count)),
+    stat("Position spray", `±${pct(dens.spray)}`),
+    stat("Nominal gain", g.gain.toFixed(2)),
+    stat("Peak voices", `${sim.peak} / ${MAX_GRAINS}`),
+    stat("Dropped in view", String(sim.dropTotal)),
+    stat("Replaced in view", String(sim.stolen)),
+  ].join("");
+
+  const forwardSamples = geo.length * rate;
+  document.getElementById("buf-stats").innerHTML = [
+    stat("Dominant rate", `×${rate} (${OCT_NAME[model.dominant]})`),
+    stat("unison", pct(mix.lo === 0 ? mix.pLo : (mix.hi === 0 ? mix.pHi : 0))),
+    stat("+1 oct", pct(octaveProbability(mix, 1))),
+    stat("+2 oct", pct(octaveProbability(mix, 2))),
+    stat("Forward travel", formatSamples(forwardSamples)),
+    stat("Reverse start shift", formatSamples(geo.length)),
+    stat("REVS", `${state.revs}%`),
+  ].join("");
+
+  document.getElementById("formula").textContent =
+`16th = samplesPerBeat(bpm) / 4
+body = round(16th × STEPS)          // 4 Bar=64 … Half=0.5
+seam = Off → 8 samples, else round(16th × ENV)
+played = body + 2 × seam
+if played > 144000:
+    played = 144000
+    seam = (played - 16) / 2
+envelope: smoothstep on attack, 1 on the flat body, smoothstep on release
+
+trigger every \`body\` samples
+Half: also halfway through each 16th
+on freeze: fire once immediately, then follow the grid
+
+smooth = smoothstep(DENS / 1023)
+count = 1 + round(smooth × 5)       // 1..6
+spray = 0.05 + smooth × 0.30
+start = wrap(0.70 + U(-1,1) × spray) × freezeLength
+reverse start = wrap(start + played)
+
+OCT target = (Y/1023) × 2           // mix the two neighboring octaves
+rate = 1, 2, or 4
+overlap = count × (1 + ENV/STEPS)   // sixteenths; Off contributes 0
+gain ≈ 1.85 / sqrt(overlap)`;
+}
+
+function octaveProbability(mix, octaves) {
+  if (mix.lo === octaves) return mix.pLo;
+  if (mix.hi === octaves && mix.hi !== mix.lo) return mix.pHi;
+  return 0;
+}
+
+function currentModel() {
+  const geo = geometry();
+  const dens = density(state.dens);
+  const mix = octaveMix(state.oct);
+  const dominant = mix.pHi > mix.pLo ? mix.hi : mix.lo;
+  const rate = rateOfOctave(dominant);
+  const plan = viewPlan(geo);
+  const sim = simulate(geo, dens.count, plan.windowSamples);
+  return { geo, dens, mix, dominant, rate, plan, sim };
+}
+
+let model = null;
+
+function render() {
+  const bpmOut = document.getElementById("bpm-out");
+  const dens = density(state.dens);
+  bpmOut.textContent = `${state.bpm} BPM`;
+  document.getElementById("dens-out").textContent = `${state.dens} · ${dens.count} ${dens.count === 1 ? "grain" : "grains"}`;
+  const mix = octaveMix(state.oct);
+  const dominant = mix.pHi > mix.pLo ? mix.hi : mix.lo;
+  document.getElementById("oct-out").textContent = `${state.oct} · ${OCT_NAME[dominant]}`;
+  document.getElementById("revs-out").textContent = `${state.revs}%`;
+  document.getElementById("play").textContent = state.playing ? "Pause" : "Play";
+
+  model = currentModel();
+  renderLengthChart(model.geo);
+  renderReadouts(model);
+  const cardW = Math.max(280, document.getElementById("c-env").parentElement.clientWidth);
+  drawEnvelope(model, cardW);
+  drawTimeline(model, document.getElementById("scroll-time").clientWidth);
+  drawDensity(model, document.getElementById("c-dens").parentElement.clientWidth);
+  drawBuffer(model, document.getElementById("c-buf").parentElement.clientWidth);
+  drawSlots(model, document.getElementById("scroll-slots").clientWidth);
+}
+
+function readHash() {
+  const query = new URLSearchParams(location.hash.replace(/^#/, ""));
+  if (query.has("bpm")) state.bpm = clampInt(query.get("bpm"), 40, 300, 120);
+  if (query.has("steps")) state.steps = clampInt(query.get("steps"), 0, 7, 6);
+  if (query.has("env")) state.env = clampInt(query.get("env"), 0, 4, 4);
+  if (query.has("dens")) state.dens = clampInt(query.get("dens"), 0, 1023, 1023);
+  if (query.has("oct")) state.oct = clampInt(query.get("oct"), 0, 1023, 512);
+  if (query.has("revs")) state.revs = clampInt(query.get("revs"), 0, 100, 50);
+  if (query.get("play") === "1") state.playing = true;
+  document.getElementById("bpm").value = String(state.bpm);
+  document.getElementById("dens").value = String(state.dens);
+  document.getElementById("oct").value = String(state.oct);
+  document.getElementById("revs").value = String(state.revs);
+  syncSeg("steps", state.steps);
+  syncSeg("env", state.env);
+}
+
+function clampInt(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(number)));
+}
+
+function syncSeg(id, value) {
+  for (const button of document.getElementById(id).querySelectorAll("button")) {
+    button.setAttribute("aria-pressed", button.dataset.value === String(value) ? "true" : "false");
+  }
+}
+
+function writeHash() {
+  const query = new URLSearchParams();
+  query.set("bpm", String(state.bpm));
+  query.set("steps", String(state.steps));
+  query.set("env", String(state.env));
+  query.set("dens", String(state.dens));
+  query.set("oct", String(state.oct));
+  query.set("revs", String(state.revs));
+  if (state.playing) query.set("play", "1");
+  history.replaceState(null, "", `#${query.toString()}`);
+}
+
+function selfCheck() {
+  const saved = { ...state };
+  state.bpm = 120;
+  state.steps = 6;
+  state.env = 4;
+  const geo = geometry();
+  expect("body", geo.body, 6000);
+  expect("seam", geo.marginParam, 24000);
+  expect("length", geo.length, 54000);
+  expect("sustain", geo.sustain, 6000);
+  expect("clamped", geo.clamped, false);
+  state.steps = 0;
+  const long = geometry();
+  expect("4bar length", long.length, 144000);
+  expect("4bar sustain", long.sustain, 16);
+  expect("4bar attack", long.attack, 71992);
+  expect("dens0", density(0).count, 1);
+  expect("dens1023", density(1023).count, 6);
+  expect("dens512", density(512).count, 4);
+  state.env = 0;
+  state.steps = 6;
+  expect("off seam", geometry().marginParam, 8);
+  state.steps = 7;
+  state.env = 4;
+  expect("half body", geometry().body, 3000);
+  Object.assign(state, saved);
+}
+
+function expect(name, got, wanted) {
+  if (got !== wanted) throw new Error(`${name}: got ${got}, expected ${wanted}`);
+}
+
+function bind() {
+  document.getElementById("bpm").addEventListener("input", (event) => {
+    state.bpm = Number(event.target.value);
+    state.playhead = 0;
+    writeHash();
+    render();
+  });
+  document.getElementById("dens").addEventListener("input", (event) => {
+    state.dens = Number(event.target.value);
+    writeHash();
+    render();
+  });
+  document.getElementById("oct").addEventListener("input", (event) => {
+    state.oct = Number(event.target.value);
+    writeHash();
+    render();
+  });
+  document.getElementById("revs").addEventListener("input", (event) => {
+    state.revs = Number(event.target.value);
+    writeHash();
+    render();
+  });
+  for (const id of ["steps", "env"]) {
+    document.getElementById(id).addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
+      state[id] = Number(button.dataset.value);
+      state.playhead = 0;
+      syncSeg(id, state[id]);
+      writeHash();
+      render();
+    });
+  }
+  document.getElementById("play").addEventListener("click", () => {
+    state.playing = !state.playing;
+    if (!state.playing) state.playhead = 0;
+    writeHash();
+    render();
+    ensureTick();
+  });
+  window.addEventListener("resize", () => render());
+}
+
+let lastFrame = 0;
+let rafId = 0;
+function tick(now) {
+  rafId = 0;
+  if (!state.playing || !model) return;
+  const dt = Math.min(0.05, (now - lastFrame) / 1000);
+  lastFrame = now;
+  state.playhead += dt * SR;
+  if (state.playhead > model.plan.windowSamples) state.playhead = 0;
+  drawTimeline(model, document.getElementById("scroll-time").clientWidth);
+  drawSlots(model, document.getElementById("scroll-slots").clientWidth);
+  rafId = requestAnimationFrame(tick);
+}
+
+function ensureTick() {
+  if (state.playing && !rafId) {
+    lastFrame = performance.now();
+    rafId = requestAnimationFrame(tick);
+  }
+}
+
+readHash();
+try {
+  selfCheck();
+} catch (error) {
+  const banner = document.getElementById("error");
+  banner.style.display = "block";
+  banner.textContent = String(error);
+}
+bind();
+render();
+ensureTick();
+</script>
+</body>
+</html>
