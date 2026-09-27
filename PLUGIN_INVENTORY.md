@@ -60,6 +60,10 @@
   - 対応: nts-3_kaoss
   - 直近 AUDIO IN を最大3秒フリーズ→ステップ同期グラニュラー。X=DENS（疎↔密）、Y=0/+1/+2oct、Depth/MIX=原音↔グレイン。MODE=Volume/Freq、STEPS / ENV / SPRD / REVS。
 
+- **StepGrain2** (`stepgrain2`) — fx（実験的）
+  - 対応: nts-3_kaoss
+  - 直近 AUDIO IN を最大3秒フリーズ。発火は毎16分、Y=Probability（確率）。Lengthは1/2/4/8/16 Step。X=Fade（粒の内側のattack/release）。Shimmerは+1 octが先、高いと+2 oct。Mixは音量。Spread / Reverse。
+
 - **ReGrain** (`regrain`) — fx（実験的）
   - 対応: nts-3_kaoss
   - 深いウェット・リバーブを常時かけてその音をキャプチャ。タッチでフリーズ→グレイン雲。X=密度、Y=SIZE（残響の深さ）、TONE/ENV/SPRD/REVS。

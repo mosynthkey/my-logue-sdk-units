@@ -221,6 +221,20 @@ export const dspExplainById = {
   Gate --> Mix[Dry or wet fade] --> Out[Out]
   In --> Mix`,
   },
+  stepgrain2: {
+    en: "Live-capture grains. The clock is every 16th note; Y/Probability is the fire probability. Length is the whole grain (1/2/4/8/16 steps) and each grain starts at 70% of the frozen buffer. X/Fade is an attack/release inside that length. Shimmer brings in +1 oct first, then +2 oct. Mix is a volume blend.",
+    ja: "AUDIO INを最大3秒フリーズします。発火は毎16分で、YのProbabilityがその確率です。Lengthが粒の長さ（1/2/4/8/16 Step）で、読み出しはフリーズ窓の70%固定。XのFadeは粒の内側のattack/release。Shimmerは+1 octが先に混ざり、高いと+2 octも入ります。Mixは音量です。",
+    mermaid: `flowchart LR
+  In[Audio in] --> Ring[SDRAM max 3s]
+  Touch[Touch freeze] --> Cloud[One grain per hit]
+  Ring --> Cloud
+  Probability[Y Probability each 16th] --> Cloud
+  Length[Length 1 to 16 steps] --> Cloud
+  Fade[X Fade inside grain] --> Cloud
+  Shimmer[Shimmer octaves] --> Cloud
+  Cloud --> Mix[Mix volume] --> Out[Out]
+  In --> Mix`,
+  },
   stepgrain: {
     en: "Live-capture granular FX. Touch freezes up to 3 s of AUDIO IN into a tempo-synced grain cloud. Depth/MIX blends live input with grains (MODE: Volume gain or Freq LPF/HPF crossover). STEPS = body/grid; ENV = seam. X/DENS: sparse ↔ dense. Y: unison / +1 / +2 octave mix.",
     ja: "AUDIO INを最大3秒フリーズし、テンポ同期のグレイン雲にします。Depth/MIXで原音とグレインを混ぜ（MODEはVolume音量 or Freqクロスオーバー）。STEPSで本体/グリッド、ENVでのりしろ。XはDENS（疎↔密）、Yは0/+1/+2oct。",
