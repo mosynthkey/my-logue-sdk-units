@@ -1,0 +1,17 @@
+{
+  "id": "stepgrain2",
+  "experimental": true,
+  "name": "StepGrain2",
+  "type": "fx",
+  "targets": ["nts-3_kaoss"],
+  "description": "Live-capture granular pad. Touch freezes up to 3 s of AUDIO IN. Grains fire on every 16th note with Probability. Length is 1/2/4/8/16 steps. Fade is an inside attack/release. Shimmer mixes +1 oct first, then +2 oct. Mix is a volume blend. Spread / Reverse.",
+  "params": [
+    { "name": "Fade", "role": "X", "detail": "Inside attack and release, 0–100%. 0% keeps a few samples of edge. 100% makes attack and release each half of the grain, with no flat middle. Default 50%." },
+    { "name": "Probability", "role": "Y", "detail": "Probability that a grain fires on each 16th note. The clock is fixed at 1 step. Default 100%." },
+    { "name": "Mix", "role": "Depth", "detail": "Volume blend of live input and grains." },
+    { "name": "Length", "role": "Edit", "detail": "Grain length: 1, 2, 4, 8, or 16 steps. Default 1 Step." },
+    { "name": "Shimmer", "role": "Edit", "detail": "0% is the original pitch. +1 oct enters first. +2 oct joins only toward the top. 100% is an equal 1/3 mix of original, +1, and +2. Default 100%." },
+    { "name": "Spread", "role": "Edit", "detail": "Random stereo width (0% = mono, 100% = hard L/R)." },
+    { "name": "Reverse", "role": "Edit", "detail": "Probability that a grain plays in reverse (0–100%)." }
+  ]
+}
